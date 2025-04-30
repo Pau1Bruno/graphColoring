@@ -107,7 +107,6 @@ static void runOnDense(const DenseMatrix &M,
         }
     };
 
-
     // 1) Greedy
     auto [greedSol, tG] = timeit([&]
                                  { return GreedyColoring::color(M); });
@@ -123,11 +122,9 @@ static void runOnDense(const DenseMatrix &M,
                                 {
                                     Graph G(M);
                                     OlemskoyColorGraph ocg(G.adjacency());
-                                    return ocg.resultColorNodes(); // vector<vector<int>>
-                                });                            
+                                    return ocg.resultColorNodes(); // now returns by value
+                                });
     int colorsO = (int)olemSol.size();
-
-    std::cout << "3";
 
     // Print summary header
     std::cout

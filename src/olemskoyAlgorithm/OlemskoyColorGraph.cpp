@@ -1,17 +1,20 @@
 #include "OlemskoyColorGraph.h"
-#include <algorithm>
-#include <numeric>
+#include "Utils.h"
+#include <numeric>      // std::iota
+#include <algorithm>    // std::sort, std::all_of
+#include <cassert>
+#include <iostream>
 
-// Constructor: set up and run
 OlemskoyColorGraph::OlemskoyColorGraph(const Matrix& adj)
     : N_(static_cast<int>(adj.rows())), graph_(adj), maxColors_(N_), isOver_(false)
 {
+    assert(adj.rows() == adj.cols());
     init();
-    if (!mainSupSet_.empty()) {
-        std::vector<int> emptySet;
-        build(mainSupSet_, emptySet);
-        initResult();
-    }
+    // Match C# constructor behavior: start with empty support & empty temp
+    std::vector<int> emptyUni;
+    std::vector<int> emptyTemp;
+    build(emptyUni, emptyTemp);
+    initResult();
 }
 
 void OlemskoyColorGraph::init() {
@@ -26,85 +29,101 @@ void OlemskoyColorGraph::init() {
 }
 
 void OlemskoyColorGraph::initResult() {
-    // bestColors_ already set during build
-}
-
-bool OlemskoyColorGraph::coloringIsOver() const {
-    int sum = 0;
-    for (auto &c : tmpColors_) sum += (int)c.size();
-    return sum == N_;
-}
-
-bool OlemskoyColorGraph::blockCheckA(int lenMax, int uniLen) const {
-    double val = tmpColors_.size() + double(uniLen) / lenMax;
-    return val >= maxColors_;
-}
-
-bool OlemskoyColorGraph::blockCheckB(int curLvl, int ro) const {
-    return 2*(curLvl-1) + ro < N_ / maxColors_;
-}
-
-bool OlemskoyColorGraph::blockCheckC(int curLvl, int uniLen, int ro) const {
-    return 2*(curLvl-1) + ro == uniLen;
-}
-
-bool OlemskoyColorGraph::blockCheckD(int ro) const {
-    int tmp1 = N_ / ro;
-    double tmp2 = double(N_) / ro;
-    if (tmp1 == tmp2) return tmp1 == maxColors_;
-    return tmp1 == maxColors_ - 1;
+    // bestColors_ now holds the final coloring
 }
 
 int OlemskoyColorGraph::getRo(const Variants& vs, const Pair& p) const {
     if (vs.setOfPairs.empty()) return 1;
-    int tmp = (int)p.sup.size();
-    return tmp != 0 ? tmp : 1;
+    int s = static_cast<int>(p.sup.size());
+    return s > 0 ? s : 1;
+}
+
+std::vector<int> OlemskoyColorGraph::createSupportSet() const {
+    std::vector<bool> used(N_, false);
+    for (auto &cls : tmpColors_)
+        for (int v : cls)
+            used[v] = true;
+    std::vector<int> sup;
+    for (int i = 0; i < N_; ++i)
+        if (!used[i])
+            sup.push_back(i);
+    return sup;
+}
+
+bool OlemskoyColorGraph::blockCheckA(int lenMax, int uniLen) const {
+    double val = tmpColors_.size() + static_cast<double>(uniLen) / lenMax;
+    return val >= maxColors_;
+}
+
+bool OlemskoyColorGraph::blockCheckB(int curLvl, int ro) const {
+    return 2 * (curLvl - 1) + ro < N_ / maxColors_;
+}
+
+bool OlemskoyColorGraph::blockCheckC(int curLvl, int uniLen, int ro) const {
+    return 2 * (curLvl - 1) + ro == uniLen;
+}
+
+bool OlemskoyColorGraph::blockCheckD(int ro) const {
+    int t1 = N_ / ro;
+    double t2 = static_cast<double>(N_) / ro;
+    return (t1 == t2) ? (t1 == maxColors_) : (t1 == maxColors_ - 1);
 }
 
 void OlemskoyColorGraph::createVariants(const std::vector<int>& uni, bool newColor) {
-    Variants result = newColor
-        ? (lvlVariants_.empty()
-            ? Variants::createFromMatrix(graph_, mainSupSet_)
-            : lvlVariants_.front().sieve(uni))
-        : lvlVariants_.back().sieve(uni);
-    // order descending support size
-    std::sort(result.setOfPairs.begin(), result.setOfPairs.end(),
+    Variants res;
+    if (!newColor) {
+        res = lvlVariants_.back().sieve(uni);
+    } else if (!lvlVariants_.empty()) {
+        res = lvlVariants_.front().sieve(uni);
+    } else {
+        res = Variants::createFromMatrix(graph_, mainSupSet_);
+    }
+    std::sort(res.setOfPairs.begin(), res.setOfPairs.end(),
               [](auto &a, auto &b){ return a.sup.size() > b.sup.size(); });
-    lvlVariants_.push_back(std::move(result));
+    lvlVariants_.push_back(std::move(res));
+    printVariantsList(lvlVariants_);
 }
 
-void OlemskoyColorGraph::buildNotNullVariants(const Variants& variants,
-                                              const std::vector<int>& uni,
-                                              std::vector<int>& curTempSet)
+void OlemskoyColorGraph::buildNotNullVariants(
+    const Variants& variants,
+    const std::vector<int>& uni,
+    std::vector<int>& curTempSet)
 {
-    int lvl = tmpColors_.size();
-    bool isFirst = (lvl == 0);
+    int lvl = static_cast<int>(curTempSet.size()) / 2 + 1;
+    bool isFirst = curTempSet.empty();
     Variants var = variants;
     while (!var.setOfPairs.empty()) {
-        const Pair node = var.setOfPairs.front();
+        Pair node = var.setOfPairs.front();
         int ro = getRo(var, node);
         if ((isFirst && blockCheckA(ro, uni.size())) ||
-            (!isFirst && tmpColors_.empty() && (uni.size()/ro >= maxColors_ || blockCheckB(lvl, (int)node.sup.size()))) ||
-            (tmpColors_.size()+1 == maxColors_-1 && !blockCheckC(lvl, uni.size(), ro)) ||
-            (isFirst && tmpColors_.empty() && blockCheckD(ro))) {
+            (tmpColors_.empty() && (static_cast<int>(uni.size())/ro >= maxColors_ || blockCheckB(lvl, static_cast<int>(node.sup.size())))) ||
+            (tmpColors_.size()+1 == maxColors_ && !blockCheckC(lvl, uni.size(), ro)) ||
+            (isFirst && tmpColors_.empty() && blockCheckD(ro)))
+        {
             return;
         }
-        // branch with this pair
-        curTempSet.push_back(node.left);
-        curTempSet.push_back(node.right);
+        std::vector<int> nextTemp = curTempSet;
+        nextTemp.push_back(node.left);
+        nextTemp.push_back(node.right);
         std::vector<int> nextUni;
-        for (int x: uni) if (std::find(node.sup.begin(), node.sup.end(), x)!=node.sup.end() && x!=node.left && x!=node.right)
-            nextUni.push_back(x);
-        tmpColors_.push_back(curTempSet);
-        build(nextUni, curTempSet);
+        for (int x : uni) {
+            if (x != node.left && x != node.right &&
+                std::find(node.sup.begin(), node.sup.end(), x) != node.sup.end())
+            {
+                nextUni.push_back(x);
+            }
+        }
+        tmpColors_.push_back(nextTemp);
+        build(nextUni, nextTemp);
         tmpColors_.pop_back();
-        // remove this pair and continue
+        if (isOver_) return;
         var.setOfPairs.erase(var.setOfPairs.begin());
     }
 }
 
-void OlemskoyColorGraph::buildEndByCenter(const std::vector<int>& uni,
-                                          std::vector<int>& curTempSet)
+void OlemskoyColorGraph::buildEndByCenter(
+    const std::vector<int>& uni,
+    std::vector<int>& curTempSet)
 {
     if (tmpColors_.size() + uni.size() >= maxColors_ || tmpColors_.size()+1 == maxColors_-1)
         return;
@@ -118,51 +137,95 @@ void OlemskoyColorGraph::buildEndByCenter(const std::vector<int>& uni,
     }
 }
 
+std::vector<int> OlemskoyColorGraph::getPhi(int s) const {
+    assert(!tmpColors_.empty());
+    auto phi = tmpColors_.back();
+    int numIters = static_cast<int>(phi.size()) - s - 1;
+    if (static_cast<int>(phi.size()) == s - 1) {
+        for (int i = 0; i < numIters; ++i)
+            phi.erase(phi.begin(), phi.begin() + 2);
+        if (phi.size() % 2 == 1)
+            phi.erase(phi.begin());
+    }
+    return phi;
+}
+
 void OlemskoyColorGraph::thinning() {
     if (tmpColors_.empty()) return;
-    int lastSize = (int)tmpColors_.back().size();
-    int lastVariants = (int)lvlVariants_.size();
+    int lastSize = static_cast<int>(tmpColors_.back().size());
+    int lastVariants = static_cast<int>(lvlVariants_.size());
     int lastColorLen = lastSize/2 + lastSize%2;
-    for (int i=1; i<lastColorLen; ++i) {
-        // phi not implemented in detail; skip deep thinning
-        lvlVariants_[lastVariants-1-i].sift(tmpColors_.back());
+    for (int i = 1; i < lastColorLen; ++i) {
+        auto phi = getPhi(i);
+        lvlVariants_[lastVariants - 1 - i].sift(phi);
     }
 }
 
-void OlemskoyColorGraph::build(const std::vector<int>& uni,
-                               std::vector<int>&       curTempSet)
-{
+bool OlemskoyColorGraph::coloringIsOver() const {
+    int cnt = 0;
+    for (auto &cls : tmpColors_) cnt += static_cast<int>(cls.size());
+    return cnt == N_;
+}
+
+bool OlemskoyColorGraph::checkFirstBlock(const std::vector<int>& block) const {
+    for (auto &wb : watchedFirstBlocks_) {
+        if (std::all_of(wb.begin(), wb.end(),
+            [&](int x){ return std::find(block.begin(), block.end(), x) != block.end(); }))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void OlemskoyColorGraph::build(const std::vector<int>& uniIn, std::vector<int>& curTempSet) {
+    // GUARD: prevent infinite recursion when both support & temp are empty but not at root
+    if (!tmpColors_.empty() && uniIn.empty() && curTempSet.empty()) {
+        std::cout << "[build] guard: non-root empty call, returning" << std::endl;
+        return;
+    }
+    // DEBUG: build entry
+    std::cout << "[build] depth=" << tmpColors_.size()
+              << " uniIn.size=" << uniIn.size()
+              << " curTempSet.size=" << curTempSet.size()
+              << " maxColors=" << maxColors_ << std::endl;
+    // DEBUG: build entry
+    std::cout << "[build] depth=" << tmpColors_.size()
+              << " uniIn.size=" << uniIn.size()
+              << " curTempSet.size=" << curTempSet.size()
+              << " maxColors=" << maxColors_ << std::endl;
     if (isOver_) return;
-    // base: no uni
+    bool firstCall = curTempSet.empty();
+    // Refresh support if starting a new color
+    std::vector<int> uni = uniIn;
+    if (firstCall) {
+        if (tmpColors_.size() == 1 && checkFirstBlock(tmpColors_[0])) return;
+        watchedFirstBlocks_.push_back(tmpColors_.empty() ? std::vector<int>{} : tmpColors_[0]);
+        uni = createSupportSet();
+    }
+    // Leaf: no vertices left
     if (uni.empty()) {
         tmpColors_.push_back(curTempSet);
         thinning();
         if (!coloringIsOver()) {
-            std::vector<int> nextUni;
-            // rebuild support: elements not in any tmpColors_
-            std::vector<bool> inColor(N_, false);
-            for (auto &c: tmpColors_) for (int v:c) inColor[v]=true;
-            for (int i=0;i<N_;++i) if (!inColor[i]) nextUni.push_back(i);
-            {
-        std::vector<int> newTemp;
-        build(nextUni, newTemp);
-    }
+            std::vector<int> nextUni = createSupportSet();
+            std::vector<int> emptyTemp;
+            build(nextUni, emptyTemp);
         } else {
             if (bestColors_.empty() || tmpColors_.size() < bestColors_.size()) {
                 bestColors_ = tmpColors_;
-                maxColors_ = (int)bestColors_.size();
+                maxColors_ = static_cast<int>(bestColors_.size());
             }
         }
         tmpColors_.pop_back();
         return;
     }
-    // create and branch
-    createVariants(uni, curTempSet.empty());
-    const Variants& var = lvlVariants_.back();
-    if (!var.setOfPairs.empty()) {
+    // Interior: generate variants and recurse
+    createVariants(uni, firstCall);
+    Variants var = lvlVariants_.back();
+    if (!var.setOfPairs.empty())
         buildNotNullVariants(var, uni, curTempSet);
-    } else {
+    else
         buildEndByCenter(uni, curTempSet);
-    }
     lvlVariants_.pop_back();
 }

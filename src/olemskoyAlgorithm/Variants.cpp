@@ -1,19 +1,27 @@
 #include "Variants.h"
+#include "Utils.h"
 #include <algorithm>
+#include <iostream>
 
-Variants Variants::createFromMatrix(const Eigen::MatrixXi& mat,
-                                    const std::vector<int>& w) {
+Variants Variants::createFromMatrix(const Eigen::MatrixXi &mat,
+                                    const std::vector<int> &w)
+{
     int n = static_cast<int>(mat.rows());
     Variants res;
-    for (int i = 0; i < n; ++i) {
-        for (int j = i + 1; j < n; ++j) {
-            if (mat(i, j) != 0) continue; // skip edges, only non-edges
+    for (int i = 0; i < n; ++i)
+    {
+        for (int j = i + 1; j < n; ++j)
+        {
+            if (mat(i, j) != 0)
+                continue; // skip edges, only non‐edges
             Pair p;
-            p.left  = i;
+            p.left = i;
             p.right = j;
-            // build support: vertices k that are non-adjacent to both i and j and in w
-            for (int k : w) {
-                if (mat(i, k) == 0 && mat(k, j) == 0) {
+            // build support: vertices k that are non‐adjacent to both i and j and in w
+            for (int k : w)
+            {
+                if (mat(i, k) == 0 && mat(k, j) == 0)
+                {
                     p.sup.push_back(k);
                 }
             }
@@ -22,14 +30,22 @@ Variants Variants::createFromMatrix(const Eigen::MatrixXi& mat,
     }
     // sort by increasing support size
     std::sort(res.setOfPairs.begin(), res.setOfPairs.end(),
-              [](auto& a, auto& b){ return a.sup.size() < b.sup.size(); });
+              [](auto &a, auto &b)
+              { return a.sup.size() < b.sup.size(); });
+
+    // *** DEBUG LOG ***
+    std::cout << "[createFromMatrix] generated Variants: " << res << std::endl;
+
     return res;
 }
 
-Variants Variants::sieve(int left, int right) const {
+Variants Variants::sieve(int left, int right) const
+{
     Variants out;
-    for (auto p : setOfPairs) {
-        if (p.left == left && p.right == right) {
+    for (auto p : setOfPairs)
+    {
+        if (p.left == left && p.right == right)
+        {
             // skip this pair entirely
             continue;
         }
@@ -41,17 +57,21 @@ Variants Variants::sieve(int left, int right) const {
     return out;
 }
 
-Variants Variants::sieve(const std::vector<int>& supSet) const {
+Variants Variants::sieve(const std::vector<int> &supSet) const
+{
     Variants out;
-    for (auto p : setOfPairs) {
+    for (auto p : setOfPairs)
+    {
         // keep only if both endpoints in supSet
         if (std::find(supSet.begin(), supSet.end(), p.left) == supSet.end() ||
-            std::find(supSet.begin(), supSet.end(), p.right) == supSet.end()) {
+            std::find(supSet.begin(), supSet.end(), p.right) == supSet.end())
+        {
             continue;
         }
         // intersect p.sup with supSet
         std::vector<int> newSup;
-        for (int x : p.sup) {
+        for (int x : p.sup)
+        {
             if (std::find(supSet.begin(), supSet.end(), x) != supSet.end())
                 newSup.push_back(x);
         }
@@ -61,19 +81,18 @@ Variants Variants::sieve(const std::vector<int>& supSet) const {
     return out;
 }
 
-void Variants::sift(const std::vector<int>& supSet) {
-    for (auto it = setOfPairs.begin(); it != setOfPairs.end(); ) {
-        bool hasCommon = false;
-        for (int x : it->sup) {
-            if (std::find(supSet.begin(), supSet.end(), x) != supSet.end()) {
-                hasCommon = true;
-                break;
-            }
-        }
-        if (!hasCommon) {
+void Variants::sift(const std::vector<int> &supSet)
+{
+    // Remove pairs whose support set is entirely within supSet
+    for (auto it = setOfPairs.begin(); it != setOfPairs.end();)
+    {
+        // Check if every element of it->sup is in supSet
+        bool allContained = std::all_of(it->sup.begin(), it->sup.end(),
+                                        [&](int x)
+                                        { return std::find(supSet.begin(), supSet.end(), x) != supSet.end(); });
+        if (allContained)
             it = setOfPairs.erase(it);
-        } else {
+        else
             ++it;
-        }
     }
 }

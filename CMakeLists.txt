@@ -44,6 +44,7 @@ add_executable(graph_coloring
   src/algorithms/GreedyColoring.cpp
   src/algorithms/DSaturColoring.cpp
   src/olemskoyAlgorithm/Graph.cpp
+  src/olemskoyAlgorithm/Utils.cpp
   src/olemskoyAlgorithm/OlemskoyColorGraph.cpp
   src/olemskoyAlgorithm/Pair.cpp
   src/olemskoyAlgorithm/Variants.cpp
