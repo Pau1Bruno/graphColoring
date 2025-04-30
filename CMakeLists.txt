@@ -43,8 +43,22 @@ add_executable(graph_coloring
   src/main.cpp
   src/algorithms/GreedyColoring.cpp
   src/algorithms/DSaturColoring.cpp
-  # src/algorithms/GeneticColoring.cpp
+  src/olemskoyAlgorithm/Graph.cpp
+  src/olemskoyAlgorithm/OlemskoyColorGraph.cpp
+  src/olemskoyAlgorithm/Pair.cpp
+  src/olemskoyAlgorithm/Variants.cpp
 )
+
+# set(SANITIZER_FLAGS -fsanitize=undefined -fsanitize=address)
+
+# target_compile_options(graph_coloring PUBLIC
+#     $<$<CONFIG:Debug>: -Wall ${SANITIZER_FLAGS}>
+#     $<$<CONFIG:Release>: -march=native>
+# )
+
+# target_link_options(graph_coloring PUBLIC
+#     $<$<CONFIG:Debug>: ${SANITIZER_FLAGS}>
+# )
 
 # Include directories
 target_include_directories(graph_coloring PRIVATE
