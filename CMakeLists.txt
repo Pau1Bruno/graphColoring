@@ -43,7 +43,7 @@ add_executable(graph_coloring
   src/main.cpp
   src/algorithms/GreedyColoring.cpp
   src/algorithms/DSaturColoring.cpp
-  src/algorithms/GeneticColoring.cpp
+  # src/algorithms/GeneticColoring.cpp
 )
 
 # Include directories
