@@ -34,10 +34,10 @@ std::ostream& operator<<(std::ostream& os, const Variants& v) {
 //-----------------------------------------------------------------------------
 // vector<DSet>: prints a header then each DSet on its own line
 //-----------------------------------------------------------------------------
-std::ostream& operator<<(std::ostream& os, const std::vector<DSet>& vsets) {
-    os << "D‐sets:\n";
-    for (auto const & ds : vsets) {
-        os << "  " << ds << "\n";
+std::ostream& operator<<(std::ostream& os, const std::vector<DSet>& dsets) {
+    os << "[DSets (size=" << dsets.size() <<")]\n";
+    for (auto const & ds : dsets) {
+        os << "  " << ds;
     }
     return os;
 }
@@ -46,9 +46,22 @@ std::ostream& operator<<(std::ostream& os, const std::vector<DSet>& vsets) {
 // std::vector<Variants>: prints each Variants on its own line
 //-----------------------------------------------------------------------------
 std::ostream& operator<<(std::ostream& os, const std::vector<Variants>& vlist) {
-    os << "Variants‐list (size=" << vlist.size() << "):\n";
+    os << "[Variants-list (size=" << vlist.size() << ")]:\n";
     for (size_t i = 0; i < vlist.size(); ++i) {
         os << " [" << i << "] " << vlist[i] << "\n";
     }
+    return os;
+}
+
+//-----------------------------------------------------------------------------
+// std::vector<int>: prints vector<int>
+//-----------------------------------------------------------------------------
+std::ostream& operator<<(std::ostream& os, const std::vector<int>& vector) {
+    os << "vector<int> = { ";
+    for (size_t i = 0; i < vector.size(); ++i) {
+        os << " " << vector[i];
+        if (i + 1 < vector.size()) os << ",";
+    }
+    os << " } " << '\n';
     return os;
 }
