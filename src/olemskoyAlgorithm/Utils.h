@@ -3,12 +3,11 @@
 #include <iosfwd>
 
 // Forward declarations
-class Pair;
+struct DSet;
 class Variants;
 
 // Stream operators for debugging
-std::ostream& operator<<(std::ostream& os, const Pair& p);
+std::ostream& operator<<(std::ostream& os, const DSet& dset);
 std::ostream& operator<<(std::ostream& os, const Variants& v);
-
-// Print a list of Variants for debugging
-void printVariantsList(const std::vector<Variants>& list);
+std::ostream& operator<<(std::ostream& os, const std::vector<DSet>& vsets);
+std::ostream& operator<<(std::ostream& os, const std::vector<Variants>& vlist);

@@ -41,14 +41,14 @@ private:
     // Recompute support = mainSupSet \ union of tmpColors_
     std::vector<int> createSupportSet() const;
 
-    // Block checks correspond to C# BlockCheckA/B/C/D
+    // Block checks BlockCheck A/B/C/D
     bool blockCheckA(int lenMax, int uniLen) const;
     bool blockCheckB(int curLvl, int ro) const;
     bool blockCheckC(int curLvl, int uniLen, int ro) const;
     bool blockCheckD(int ro) const;
 
-    // Ro = size of support for a given Pair (at least 1)
-    int getRo(const Variants& vs, const Pair& p) const;
+    // Ro = size of support for a given dSet (at least 1)
+    int getRo(const Variants& vs, const DSet& dSet) const;
 
     // Recursive branching:
     void build(const std::vector<int>& uni,

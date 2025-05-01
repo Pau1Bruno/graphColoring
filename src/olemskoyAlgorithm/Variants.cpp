@@ -3,56 +3,119 @@
 #include <algorithm>
 #include <iostream>
 
-Variants Variants::createFromMatrix(const Eigen::MatrixXi &mat,
-                                    const std::vector<int> &w)
+static bool contains(const std::vector<int> &vec, int x)
 {
-    int n = static_cast<int>(mat.rows());
-    Variants res;
-    for (int i = 0; i < n; ++i)
-    {
-        for (int j = i + 1; j < n; ++j)
-        {
-            if (mat(i, j) != 0)
-                continue; // skip edges, only non‐edges
-            Pair p;
-            p.left = i;
-            p.right = j;
-            // build support: vertices k that are non‐adjacent to both i and j and in w
-            for (int k : w)
-            {
-                if (mat(i, k) == 0 && mat(k, j) == 0)
-                {
-                    p.sup.push_back(k);
-                }
-            }
-            res.setOfPairs.push_back(std::move(p));
-        }
-    }
-    // sort by increasing support size
-    std::sort(res.setOfPairs.begin(), res.setOfPairs.end(),
-              [](auto &a, auto &b)
-              { return a.sup.size() < b.sup.size(); });
-
-    // *** DEBUG LOG ***
-    std::cout << "[createFromMatrix] generated Variants: " << res << std::endl;
-
-    return res;
+    return std::find(vec.begin(), vec.end(), x) != vec.end();
 }
 
-Variants Variants::sieve(int left, int right) const
+Variants Variants::createFromMatrix(const Eigen::MatrixXi &mat,
+                                    const std::vector<int> &omega)
+{
+    int n = mat.rows();
+    // 1) Build horizontal and vertical zero‐sets (1‐based)
+    std::vector<std::vector<int>> hor(n), ver(n);
+    for (int i = 0; i < n; ++i)
+    {
+        for (int j = 0; j < n; ++j)
+        {
+            if (mat(i, j) == 0)
+            {
+                hor[i].push_back(j + 1);
+                ver[j].push_back(i + 1);
+            }
+        }
+    }
+
+    // ** DEBUG PRINT H and V **
+    std::cout << "[Variants] Horizontal sets H:\n";
+    for (int i = 0; i < n; ++i)
+    {
+        std::cout << "  H" << (i + 1) << " = { ";
+        for (int x : hor[i])
+            std::cout << x << " ";
+        std::cout << "}\n";
+    }
+    std::cout << "[Variants] Vertical sets V:\n";
+    for (int j = 0; j < n; ++j)
+    {
+        std::cout << "  V" << (j + 1) << " = { ";
+        for (int x : ver[j])
+            std::cout << x << " ";
+        std::cout << "}\n";
+    }
+
+    // 2) Generate all D‐sets
+    std::vector<DSet> dsets;
+    dsets.reserve(n * n);
+
+    for (int q = 0; q < n; ++q)
+    {
+        for (int r = q + 1; r < n; ++r)
+        {
+            int Q = q + 1, R = r + 1;
+            if (!contains(omega, Q) || !contains(omega, R))
+                continue;
+
+            // build d_{q,r} = hor[q] ∩ ver[r] ∩ omega
+            std::vector<int> d_qr;
+            for (int el : hor[q])
+            {
+                if (contains(ver[r], el) && contains(omega, el))
+                    d_qr.push_back(el);
+            }
+
+            // build d_{r,q} = hor[r] ∩ ver[q] ∩ omega
+            std::vector<int> d_rq;
+            for (int el : hor[r])
+            {
+                if (contains(ver[q], el) && contains(omega, el))
+                    d_rq.push_back(el);
+            }
+
+            // now D_{(q,r)} = d_{q,r} ∩ d_{r,q}
+            std::vector<int> Dqr;
+            for (int el : d_qr)
+            {
+                if (contains(d_rq, el))
+                    Dqr.push_back(el);
+            }
+
+            if (!contains(Dqr, Q) || !contains(Dqr, R))
+                continue;
+
+            dsets.push_back({Q, R, std::move(Dqr)});
+        }
+    }
+
+    // 3) sortD: descending by support size
+    std::sort(dsets.begin(), dsets.end(),
+              [&](auto &a, auto &b)
+              {
+                  if (a.set.size() != b.set.size())
+                      return a.set.size() > b.set.size();
+                    if (a.i != b.i) return a.i < b.i;
+                  return a.j < b.j;
+              });
+
+    std::cout << dsets;
+
+    return {dsets};
+}
+
+Variants Variants::sieve(int i, int j) const
 {
     Variants out;
-    for (auto p : setOfPairs)
+    for (auto dSet : setOfPairs)
     {
-        if (p.left == left && p.right == right)
+        if (dSet.i == i && dSet.j == j)
         {
             // skip this pair entirely
             continue;
         }
-        // for other pairs, prune support of left/right
-        p.sup.erase(std::remove(p.sup.begin(), p.sup.end(), left), p.sup.end());
-        p.sup.erase(std::remove(p.sup.begin(), p.sup.end(), right), p.sup.end());
-        out.setOfPairs.push_back(std::move(p));
+        // for other pairs, prune support of i/j
+        dSet.set.erase(std::remove(dSet.set.begin(), dSet.set.end(), i), dSet.set.end());
+        dSet.set.erase(std::remove(dSet.set.begin(), dSet.set.end(), j), dSet.set.end());
+        out.setOfPairs.push_back(std::move(dSet));
     }
     return out;
 }
@@ -60,23 +123,23 @@ Variants Variants::sieve(int left, int right) const
 Variants Variants::sieve(const std::vector<int> &supSet) const
 {
     Variants out;
-    for (auto p : setOfPairs)
+    for (auto dSet : setOfPairs)
     {
         // keep only if both endpoints in supSet
-        if (std::find(supSet.begin(), supSet.end(), p.left) == supSet.end() ||
-            std::find(supSet.begin(), supSet.end(), p.right) == supSet.end())
+        if (std::find(supSet.begin(), supSet.end(), dSet.i) == supSet.end() ||
+            std::find(supSet.begin(), supSet.end(), dSet.j) == supSet.end())
         {
             continue;
         }
         // intersect p.sup with supSet
         std::vector<int> newSup;
-        for (int x : p.sup)
+        for (int x : dSet.set)
         {
             if (std::find(supSet.begin(), supSet.end(), x) != supSet.end())
                 newSup.push_back(x);
         }
-        p.sup = std::move(newSup);
-        out.setOfPairs.push_back(std::move(p));
+        dSet.set = std::move(newSup);
+        out.setOfPairs.push_back(std::move(dSet));
     }
     return out;
 }
@@ -87,7 +150,7 @@ void Variants::sift(const std::vector<int> &supSet)
     for (auto it = setOfPairs.begin(); it != setOfPairs.end();)
     {
         // Check if every element of it->sup is in supSet
-        bool allContained = std::all_of(it->sup.begin(), it->sup.end(),
+        bool allContained = std::all_of(it->set.begin(), it->set.end(),
                                         [&](int x)
                                         { return std::find(supSet.begin(), supSet.end(), x) != supSet.end(); });
         if (allContained)

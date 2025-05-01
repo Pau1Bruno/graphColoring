@@ -46,7 +46,7 @@ add_executable(graph_coloring
   src/olemskoyAlgorithm/Graph.cpp
   src/olemskoyAlgorithm/Utils.cpp
   src/olemskoyAlgorithm/OlemskoyColorGraph.cpp
-  src/olemskoyAlgorithm/Pair.cpp
+  src/olemskoyAlgorithm/DSet.cpp
   src/olemskoyAlgorithm/Variants.cpp
 )
 
