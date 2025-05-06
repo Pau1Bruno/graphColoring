@@ -1,9 +1,9 @@
 #include "Benchmark.h"
 
 int main() {
-    int                             n = 5;                   // number of vertices
-    std::vector<double>             densities = {0.4,0.6,0.8};
-    int                             perDensity = 3;          // matrices per density
+    int                             n = 13;                   // number of vertices
+    std::vector<double>             densities = {0.15,0.25,0.35, 0.45};
+    int                             perDensity = 5;          // matrices per density
 
     runBenchmarks(n, densities, perDensity);
 
