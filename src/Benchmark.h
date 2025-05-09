@@ -156,25 +156,25 @@ inline void runBenchmarks(int n,
                           const std::vector<double> &densities,
                           int perDensity)
 {
-    // DenseMatrix TEST_MATRIX {
-    //     {0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
-    //     {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
-    //     {0, 1, 0, 1, 1, 1, 0, 0, 0, 0},
-    //     {1, 0, 1, 0, 0, 0, 1, 1, 0, 0},
-    //     {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
-    //     {1, 0, 1, 0, 0, 0, 0, 1, 1, 0},
-    //     {0, 1, 0, 0, 1, 1, 0, 0, 0, 1},
-    //     {0, 0, 0, 1, 0, 1, 0, 0, 0, 0},
-    //     {0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
-    //     {0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
-    // };
-    // runOnDense(TEST_MATRIX, 1, 1, "Dense");
-    for (double d : densities)
-    {
-        auto denseList = generateDenseMatrices(n, d, perDensity);
-        for (int i = 0; i < perDensity; ++i)
-        {
-            runOnDense(denseList[i], d, i, "Dense");
-        }
-    }
+    DenseMatrix TEST_MATRIX {
+        {0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+        {0, 1, 0, 1, 1, 1, 0, 0, 0, 0},
+        {1, 0, 1, 0, 0, 0, 1, 1, 0, 0},
+        {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+        {1, 0, 1, 0, 0, 0, 0, 1, 1, 0},
+        {0, 1, 0, 0, 1, 1, 0, 0, 0, 1},
+        {0, 0, 0, 1, 0, 1, 0, 0, 0, 0},
+        {0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+    };
+    runOnDense(TEST_MATRIX, 1, 1, "Dense");
+    // for (double d : densities)
+    // {
+    //     auto denseList = generateDenseMatrices(n, d, perDensity);
+    //     for (int i = 0; i < perDensity; ++i)
+    //     {
+    //         runOnDense(denseList[i], d, i, "Dense");
+    //     }
+    // }
 }

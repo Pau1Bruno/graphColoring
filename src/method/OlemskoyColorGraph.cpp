@@ -1,5 +1,4 @@
 #include "OlemskoyColorGraph.h"
-// #include "Graph.h"
 #include <iostream>
 #include <cmath>
 #include <functional>
@@ -45,7 +44,7 @@ void OlemskoyColorGraph::searchBlocks(int currentBlockIndex) {
 
     // Prune if we've already used equal or more blocks than the best found
     if (currentBlockIndex > bestColorCount) {
-        // std::cout << "[Prune A] Already using " << (currentBlockIndex - 1) 
+        // std::cout << "[Prune A] Already using " << (currentBlockIndex - 1)
         //           << " blocks (>= best " << bestColorCount << "). Backtracking.\n";
         return;
     }
@@ -80,7 +79,7 @@ void OlemskoyColorGraph::searchBlocks(int currentBlockIndex) {
     dfsClique(0);
     int lowerBoundBlocks = (currentBlockIndex - 1) + maxCliqueSize;
     if (lowerBoundBlocks > bestColorCount) {
-        // std::cout << "[Prune A] Lower bound = " << lowerBoundBlocks 
+        // std::cout << "[Prune A] Lower bound = " << lowerBoundBlocks
         //           << " blocks (>" << bestColorCount << " best). Backtracking.\n";
         return;
     }
@@ -100,12 +99,12 @@ void OlemskoyColorGraph::searchBlocks(int currentBlockIndex) {
     buildBlock(currentBlockIndex, currentBlock, support, 1, support.size());
 }
 
-void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlock, 
+void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlock,
                                     std::vector<int>& support, int level, int initialSize) {
     // If support is empty, we've completed this block with an even number of vertices (no leftover)
     if (support.empty()) {
         // Close the block and move to the next block in the coloring
-        // std::cout << "Block " << blockIndex << " completed (even size: " 
+        // std::cout << "Block " << blockIndex << " completed (even size: "
         //           << currentBlock.size() << " vertices).\n";
         // Prepare to recurse for the next block
         // Check symmetry pruning D for first block:
@@ -119,7 +118,7 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlo
                 firstBlockSeen.insert(mask);
                 // Add this block to current partition and recurse
                 currentPartition.push_back(currentBlock);
-                // std::cout << "Proceeding to Block " << (blockIndex + 1) << " after closing Block " 
+                // std::cout << "Proceeding to Block " << (blockIndex + 1) << " after closing Block "
                 //           << blockIndex << ".\n";
                 searchBlocks(blockIndex + 1);
                 currentPartition.pop_back();
@@ -127,7 +126,7 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlo
         } else {
             // No symmetry check for later blocks
             currentPartition.push_back(currentBlock);
-            // std::cout << "Proceeding to Block " << (blockIndex + 1) << " after closing Block " 
+            // std::cout << "Proceeding to Block " << (blockIndex + 1) << " after closing Block "
             //           << blockIndex << ".\n";
             searchBlocks(blockIndex + 1);
             currentPartition.pop_back();
@@ -174,7 +173,7 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlo
         if (blockIndex == 1) {
             // Already have (level-1)*2 vertices in currentBlock (from higher levels)
             // plus potentially adding this pair and its intersection
-            int potentialSize = 2 * (level - 1) + (int)intersectionSize + 2; 
+            int potentialSize = 2 * (level - 1) + (int)intersectionSize + 2;
             // We add 2 for the current pair itself, and intersectionSize is how many more could possibly join after
             // Actually, check B formula from description: 2(s-1) + ρ^{1,s} < ceil(n / v0)
             // They define ρ^{1,s} as |D_{(p,q)}| (common nonneighbors count) if pivot exists.
@@ -185,9 +184,9 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlo
             // We'll use the formula as given: 2*(level-1) + (intersectionSize) < ceil(n / bestColorCount).
             int avgTarget = (int)std::ceil(n * 1.0 / bestColorCount);
             if (2 * (level - 1) + intersectionSize < avgTarget) {
-                // std::cout << "[Prune B] Block 1 potential too small (" 
-                //           << (2 * (level - 1) + intersectionSize) << " < ceil(" << n << "/" 
-                //           << bestColorCount << ")=" << avgTarget << "). Skipping pivot (" 
+                // std::cout << "[Prune B] Block 1 potential too small ("
+                //           << (2 * (level - 1) + intersectionSize) << " < ceil(" << n << "/"
+                //           << bestColorCount << ")=" << avgTarget << "). Skipping pivot ("
                 //           << p << "," << q << ").\n";
                 continue;
             }
@@ -198,13 +197,13 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlo
             // meaning we'll end up with 'bestColorCount' blocks in total (tie, not improvement).
             // Check if 2*(level-1) + (intersection + 2) equals initial size.
             if (2 * (level - 1) + (int)currentBlock.size() + 2 + intersectionSize == initialSize) {
-                // std::cout << "[Prune C] Branch would complete coloring with " << bestColorCount 
+                // std::cout << "[Prune C] Branch would complete coloring with " << bestColorCount
                 //           << " blocks (no improvement). Skipping pivot (" << p << "," << q << ").\n";
                 continue;
             }
         }
         // Choose this pivot pair (p,q) for current level
-        // std::cout << "Level " << level << ": choose pivot (" << p << "," << q 
+        // std::cout << "Level " << level << ": choose pivot (" << p << "," << q
         //           << "), common candidates = " << intersectionSize << ".\n";
 
         // Mark p and q as used (colored in this block)
@@ -213,7 +212,7 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlo
         // Add them to current block
         currentBlock.push_back(p);
         currentBlock.push_back(q);
-        // Ensure the block's vertex list remains sorted (for consistency) 
+        // Ensure the block's vertex list remains sorted (for consistency)
         // (Not strictly necessary for correctness, but good for output and mask consistency)
         std::sort(currentBlock.begin(), currentBlock.end());
 
@@ -260,7 +259,7 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlo
             // Prune Check C also applies here: if block is last allowed and taking this leftover uses exactly all initial vertices...
             if (blockIndex == bestColorCount) {
                 if (2 * (level - 1) + (int)currentBlock.size() + 1 == initialSize) {
-                    // std::cout << "[Prune C] Branch would complete coloring with " << bestColorCount 
+                    // std::cout << "[Prune C] Branch would complete coloring with " << bestColorCount
                     //           << " blocks (no improvement). Skipping leftover " << v << ".\n";
                     // We still mark it as considered and continue to next leftover
                     continue;
@@ -280,14 +279,14 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlo
                 } else {
                     firstBlockSeen.insert(mask);
                     currentPartition.push_back(currentBlock);
-                    // std::cout << "Proceeding to Block " << (blockIndex + 1) 
+                    // std::cout << "Proceeding to Block " << (blockIndex + 1)
                     //           << " after closing Block " << blockIndex << " with leftover.\n";
                     searchBlocks(blockIndex + 1);
                     currentPartition.pop_back();
                 }
             } else {
                 currentPartition.push_back(currentBlock);
-                // std::cout << "Proceeding to Block " << (blockIndex + 1) 
+                // std::cout << "Proceeding to Block " << (blockIndex + 1)
                 //           << " after closing Block " << blockIndex << " with leftover.\n";
                 searchBlocks(blockIndex + 1);
                 currentPartition.pop_back();

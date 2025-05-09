@@ -5,6 +5,7 @@ project(GraphColoring LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Choose Release by default with high optimization
 if (NOT CMAKE_BUILD_TYPE)
@@ -45,11 +46,6 @@ add_executable(graph_coloring
   src/algorithms/DSaturColoring.cpp
   src/method/Graph.cpp
   src/method/OlemskoyColorGraph.cpp
-  src/olemskoyAlgorithm/Graph.cpp
-  src/olemskoyAlgorithm/Utils.cpp
-  src/olemskoyAlgorithm/OlemskoyColorGraph.cpp
-  src/olemskoyAlgorithm/DSet.cpp
-  src/olemskoyAlgorithm/Variants.cpp
 )
 
 # set(SANITIZER_FLAGS -fsanitize=undefined -fsanitize=address)
