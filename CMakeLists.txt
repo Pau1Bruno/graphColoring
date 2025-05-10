@@ -46,6 +46,7 @@ add_executable(graph_coloring
   src/algorithms/DSaturColoring.cpp
   src/method/Graph.cpp
   src/method/OlemskoyColorGraph.cpp
+  src/method/Utils.cpp
 )
 
 # set(SANITIZER_FLAGS -fsanitize=undefined -fsanitize=address)

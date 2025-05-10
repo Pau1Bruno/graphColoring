@@ -1,4 +1,5 @@
 #include "OlemskoyColorGraph.h"
+#include "GPair.h"
 #include <iostream>
 #include <cmath>
 #include <functional>
@@ -28,8 +29,11 @@ void OlemskoyColorGraph::searchBlocks(int currentBlockIndex) {
         if (!used[v]) {
             allColored = false;
             break;
-        }
+     
+       }
     }
+
+    std::cout << 'c';
     if (allColored) {
         // All vertices covered with (currentBlockIndex - 1) blocks
         int blocksUsed = currentBlockIndex - 1;
@@ -85,24 +89,24 @@ void OlemskoyColorGraph::searchBlocks(int currentBlockIndex) {
     }
 
     // Begin constructing the current block (block 'currentBlockIndex')
-    std::vector<int> support = remain;  // candidates for this block (initially all remaining vertices)
-    // (support is inherently sorted by vertex index ascending due to how 'remain' was constructed)
+    std::vector<int> omega = remain;  // candidates for this block (initially all remaining vertices)
+    // (omega is inherently sorted by vertex index ascending due to how 'remain' was constructed)
     std::vector<int> currentBlock;      // vertices currently in this block (being built)
 
-    // std::cout << "Starting Block " << currentBlockIndex << " (Level 1) with initial support: {";
-    // for (size_t k = 0; k < support.size(); ++k) {
-    //     std::cout << support[k] << ((k + 1 < support.size()) ? "," : "");
+    // std::cout << "Starting Block " << currentBlockIndex << " (Level 1) with initial omega: {";
+    // for (size_t k = 0; k < omega.size(); ++k) {
+    //     std::cout << omega[k] << ((k + 1 < omega.size()) ? "," : "");
     // }
     // std::cout << "}\n";
 
-    // Recursively build the block (level=1, record initial support size for check C)
-    buildBlock(currentBlockIndex, currentBlock, support, 1, support.size());
+    // Recursively build the block (level=1, record initial omega size for check C)
+    buildBlock(currentBlockIndex, currentBlock, omega, 1, omega.size());
 }
 
 void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlock,
-                                    std::vector<int>& support, int level, int initialSize) {
-    // If support is empty, we've completed this block with an even number of vertices (no leftover)
-    if (support.empty()) {
+                                    std::vector<int>& omega, int level, int initialSize) {
+    // If omega is empty, we've completed this block with an even number of vertices (no leftover)
+    if (omega.empty()) {
         // Close the block and move to the next block in the coloring
         // std::cout << "Block " << blockIndex << " completed (even size: "
         //           << currentBlock.size() << " vertices).\n";
@@ -133,42 +137,15 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlo
         }
         return; // backtrack (block finished)
     }
+    // Form list of all candidate pivot pairs (q,r) in 'omega' that are non-adjacent
+    auto gPairs = buildGPairsHV(g, omega);
 
-    // Form list of all candidate pivot pairs (q,r) in 'support' that are non-adjacent
-    struct PairInfo { int u; int v; int commonCount; };
-    std::vector<PairInfo> pivotPairs;
-    pivotPairs.reserve(support.size() * (support.size() - 1) / 2);
-    for (size_t i = 0; i < support.size(); ++i) {
-        for (size_t j = i + 1; j < support.size(); ++j) {
-            int u = support[i];
-            int v = support[j];
-            if (!g.areAdjacent(u, v)) {
-                // Compute how many vertices in support (excluding u,v) are common non-neighbors of u and v
-                int commonCount = 0;
-                for (int w : support) {
-                    if (w == u || w == v) continue;
-                    if (!g.areAdjacent(u, w) && !g.areAdjacent(v, w)) {
-                        commonCount++;
-                    }
-                }
-                pivotPairs.push_back({u, v, commonCount});
-            }
-        }
-    }
-    // Sort pivot pairs by descending commonCount (heuristic: choose pair with max intersection first)
-    std::sort(pivotPairs.begin(), pivotPairs.end(), [](const PairInfo& a, const PairInfo& b){
-        if (a.commonCount != b.commonCount) return a.commonCount > b.commonCount;
-        // tie-break: maybe by smallest vertex to have deterministic order
-        if (a.u != b.u) return a.u < b.u;
-        return a.v < b.v;
-    });
-
-    // Memory for "used" pivot pairs at this level is implicit by iterating pivotPairs vector (no duplicates)
+    // Memory for "used" pivot pairs at this level is implicit by iterating gPairs vector (no duplicates)
     // Try each pivot pair as a branching option
-    for (auto& pair : pivotPairs) {
-        int p = pair.u;
-        int q = pair.v;
-        int intersectionSize = pair.commonCount;
+    for (auto& pair : gPairs) {
+        int p = pair.i;
+        int q = pair.j;
+        int intersectionSize = pair.set.size();
         // Pruning Check B: first block, ensure potential block size >= ceil(n / bestColorCount)
         if (blockIndex == 1) {
             // Already have (level-1)*2 vertices in currentBlock (from higher levels)
@@ -193,7 +170,7 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlo
         }
         // Pruning Check C: if building the last allowed block (equals current best), avoid branches that only achieve tie
         if (blockIndex == bestColorCount) {
-            // If this pivot's common intersection plus already in block equals initial support, it will use up all remaining vertices exactly
+            // If this pivot's common intersection plus already in block equals initial omega, it will use up all remaining vertices exactly
             // meaning we'll end up with 'bestColorCount' blocks in total (tie, not improvement).
             // Check if 2*(level-1) + (intersection + 2) equals initial size.
             if (2 * (level - 1) + (int)currentBlock.size() + 2 + intersectionSize == initialSize) {
@@ -216,25 +193,25 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlo
         // (Not strictly necessary for correctness, but good for output and mask consistency)
         std::sort(currentBlock.begin(), currentBlock.end());
 
-        // Compute new support for next level = old support ∩ nonneighbors(p) ∩ nonneighbors(q) \ {p,q}
-        std::vector<int> newSupport;
-        newSupport.reserve(support.size());
-        for (int w : support) {
+        // Compute new omega for next level = old omega ∩ nonneighbors(p) ∩ nonneighbors(q) \ {p,q}
+        std::vector<int> newOmega;
+        newOmega.reserve(omega.size());
+        for (int w : omega) {
             if (w == p || w == q) continue;
             if (!g.areAdjacent(p, w) && !g.areAdjacent(q, w)) {
-                newSupport.push_back(w);
+                newOmega.push_back(w);
             }
         }
-        // newSupport is naturally sorted because we iterated sorted 'support'
+        // newOmega is naturally sorted because we iterated sorted 'omega'
 
-        // std::cout << "Level " << level << ": new support after adding (" << p << "," << q << "): {";
-        // for (size_t k = 0; k < newSupport.size(); ++k) {
-        //     std::cout << newSupport[k] << ((k + 1 < newSupport.size()) ? "," : "");
+        // std::cout << "Level " << level << ": new omega after adding (" << p << "," << q << "): {";
+        // for (size_t k = 0; k < newOmega.size(); ++k) {
+        //     std::cout << newOmega[k] << ((k + 1 < newOmega.size()) ? "," : "");
         // }
         // std::cout << "}.\n";
 
         // Recurse to next level within this same block
-        buildBlock(blockIndex, currentBlock, newSupport, level + 1, initialSize);
+        buildBlock(blockIndex, currentBlock, newOmega, level + 1, initialSize);
 
         // Backtrack: remove p,q from current block and mark them unused
         currentBlock.erase(std::remove(currentBlock.begin(), currentBlock.end(), p), currentBlock.end());
@@ -245,17 +222,17 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, std::vector<int>& currentBlo
     }
 
     // After exploring all pivot pairs at this level, or if none was available, consider closing block with a leftover vertex
-    if (!support.empty()) {
+    if (!omega.empty()) {
         // If no pivot pairs at this level or all pivot branches explored, try adding one leftover vertex to finish this block
         // std::cout << "Level " << level << ": ";
-        // if (!pivotPairs.empty()) {
+        // if (!gPairs.empty()) {
         //     std::cout << "exhausted pivot options, closing block with a leftover.\n";
         // } else {
         //     std::cout << "no pivot pair available, closing block with a leftover.\n";
         // }
-        // Loop through possible leftover vertices in support (prefer highest index first for consistency)
-        for (int idx = support.size() - 1; idx >= 0; --idx) {
-            int v = support[idx];
+        // Loop through possible leftover vertices in omega (prefer highest index first for consistency)
+        for (int idx = omega.size() - 1; idx >= 0; --idx) {
+            int v = omega[idx];
             // Prune Check C also applies here: if block is last allowed and taking this leftover uses exactly all initial vertices...
             if (blockIndex == bestColorCount) {
                 if (2 * (level - 1) + (int)currentBlock.size() + 1 == initialSize) {

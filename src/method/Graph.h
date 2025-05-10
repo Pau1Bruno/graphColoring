@@ -2,22 +2,32 @@
 #define OLEMSKOY_GRAPH_H
 
 #include <Eigen/Dense>
+#include <iostream>
 #include <vector>
+
+using DenseMatrix = Eigen::Matrix<int,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor>;
 
 class Graph {
 private:
     int n;
     std::vector<std::vector<bool>> adj;
+    std::vector<std::vector<int>>  Hsets_, Vsets_;
 public:
     // Construct Graph from a symmetric [0-1] matrix (Eigen)
-    Graph(const Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic>& matrix) {
+    Graph(const DenseMatrix& matrix) {
         n = matrix.rows();
         adj.assign(n, std::vector<bool>(n));
         for (int i = 0; i < n; ++i) {
             for (int j = 0; j < n; ++j) {
+                bool edge = (matrix(i, j) != 0);
                 // Treat nonzero as adjacent (assuming 1 for edges, 0 for no edge)
                 // Ensure diagonal is treated as no self-loop (0) for safety
-                adj[i][j] = (matrix(i, j) != 0);
+                adj[i][j] = edge;
+
+                if (!edge) {                 
+                    Hsets_[i].push_back(j + 1); // 1-индексировка
+                    Vsets_[j].push_back(i + 1);
+                }
             }
         }
     }
@@ -33,6 +43,8 @@ public:
     }
 
     const std::vector<std::vector<bool>>& adjacency() const { return adj; }
+    const std::vector<std::vector<int>>& Hsets() const { return Hsets_; }
+    const std::vector<std::vector<int>>& Vsets() const { return Vsets_; }
 };
 
 #endif // OLEMSKOY_GRAPH_H

@@ -6,6 +6,6 @@ int main() {
     int                             perDensity = 5;          // matrices per density
 
     runBenchmarks(n, densities, perDensity);
-
+    std::cout << '1';
     return 0;
 }

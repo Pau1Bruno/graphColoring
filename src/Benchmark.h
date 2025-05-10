@@ -15,59 +15,38 @@
 #include <algorithm>
 #include <string>
 
-using DenseMatrix = Eigen::Matrix<int,Eigen::Dynamic,Eigen::Dynamic>;
 using Clock = std::chrono::high_resolution_clock;
 
 // –– Utility: generate 'count' symmetric dense matrices of size n×n with given density
 static std::vector<DenseMatrix>
 generateDenseMatrices(int n, double density, int count)
 {
-    std::mt19937_64 rng{std::random_device{}()};
-    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    using Eigen::Index;
+
+    std::mt19937_64                     rng{std::random_device{}()};
+    std::bernoulli_distribution         coin(density);            // 2. bool-генератор
+    auto gen = [&](Index, Index) { return static_cast<int>(coin(rng)); };
 
     std::vector<DenseMatrix> out;
     out.reserve(count);
 
-    for (int m = 0; m < count; ++m)
+    for (int k = 0; k < count; ++k)
     {
         DenseMatrix A = DenseMatrix::Zero(n, n);
-        for (int i = 0; i < n; ++i)
-        {
-            for (int j = i + 1; j < n; ++j)
-            {
-                if (dist(rng) < density)
-                {
-                    A(i, j) = A(j, i) = 1;
-                }
-            }
-        }
-        out.push_back(std::move(A));
+
+        /* 3. генерируем сразу всю верхнюю часть ленивым NullaryExpr
+              — Eigen вычисляет только запрошенные элементы */
+        A.template triangularView<Eigen::StrictlyUpper>() =
+            DenseMatrix::NullaryExpr(n, n, gen)
+            .template triangularView<Eigen::StrictlyUpper>();
+
+        /* 4. зеркалим векторизованным присваиванием без второго цикла */
+        A.template triangularView<Eigen::StrictlyLower>() =
+            A.transpose().template triangularView<Eigen::StrictlyLower>();
+
+        out.emplace_back(std::move(A));
     }
     return out;
-}
-
-// –– Compute maximum degree Δ(G)
-template <typename Mat>
-static int computeMaxDegree(const Mat &A)
-{
-    int n = A.rows(), maxDeg = 0;
-    for (int i = 0; i < n; ++i)
-    {
-        int deg = 0;
-        if constexpr (std::is_same_v<Mat, DenseMatrix>)
-        {
-            for (int j = 0; j < n; ++j)
-                if (A(i, j) != 0)
-                    ++deg;
-        }
-        else
-        {
-            for (typename Mat::InnerIterator it(A, i); it; ++it)
-                ++deg;
-        }
-        maxDeg = std::max(maxDeg, deg);
-    }
-    return maxDeg;
 }
 
 // –– Run all three algorithms on a given dense matrix
