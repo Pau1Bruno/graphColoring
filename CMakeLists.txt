@@ -49,16 +49,16 @@ add_executable(graph_coloring
   src/method/Utils.cpp
 )
 
-# set(SANITIZER_FLAGS -fsanitize=undefined -fsanitize=address)
+set(SANITIZER_FLAGS -fsanitize=undefined -fsanitize=address)
 
-# target_compile_options(graph_coloring PUBLIC
-#     $<$<CONFIG:Debug>: -Wall ${SANITIZER_FLAGS}>
-#     $<$<CONFIG:Release>: -march=native>
-# )
+target_compile_options(graph_coloring PUBLIC
+    $<$<CONFIG:Debug>: -Wall ${SANITIZER_FLAGS}>
+    $<$<CONFIG:Release>: -march=native>
+)
 
-# target_link_options(graph_coloring PUBLIC
-#     $<$<CONFIG:Debug>: ${SANITIZER_FLAGS}>
-# )
+target_link_options(graph_coloring PUBLIC
+    $<$<CONFIG:Debug>: ${SANITIZER_FLAGS}>
+)
 
 # Include directories
 target_include_directories(graph_coloring PRIVATE

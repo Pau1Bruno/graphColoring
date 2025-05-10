@@ -5,6 +5,8 @@
 #include <iostream>
 #include <vector>
 
+#include "Utils.h"
+
 using DenseMatrix = Eigen::Matrix<int,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor>;
 
 class Graph {
@@ -14,9 +16,13 @@ private:
     std::vector<std::vector<int>>  Hsets_, Vsets_;
 public:
     // Construct Graph from a symmetric [0-1] matrix (Eigen)
-    Graph(const DenseMatrix& matrix) {
+    Graph(const DenseMatrix& matrix) : n(matrix.rows()),
+    adj(n, std::vector<bool>(n)),
+    Hsets_(n),        
+    Vsets_(n) {
         n = matrix.rows();
         adj.assign(n, std::vector<bool>(n));
+
         for (int i = 0; i < n; ++i) {
             for (int j = 0; j < n; ++j) {
                 bool edge = (matrix(i, j) != 0);
@@ -25,11 +31,13 @@ public:
                 adj[i][j] = edge;
 
                 if (!edge) {                 
-                    Hsets_[i].push_back(j + 1); // 1-индексировка
+                    Hsets_[i].push_back(j + 1);
                     Vsets_[j].push_back(i + 1);
                 }
             }
         }
+
+        std::cout << Hsets_;
     }
 
     // Number of vertices

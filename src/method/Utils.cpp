@@ -30,7 +30,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<GPair>& gPairs) {
 // std::vector<int>: prints vector<int>
 //-----------------------------------------------------------------------------
 std::ostream& operator<<(std::ostream& os, const std::vector<int>& vector) {
-    os << "vector<int> = { ";
+    os << " {";
     for (size_t i = 0; i < vector.size(); ++i) {
         os << " " << vector[i];
         if (i + 1 < vector.size()) os << ",";
@@ -40,14 +40,12 @@ std::ostream& operator<<(std::ostream& os, const std::vector<int>& vector) {
 }
 
 //-----------------------------------------------------------------------------
-// std::vector<std::vector<int>>: prints vector<vector<int>>
+// std::vector<std::vector<in: prints vector<vector<int>>
 //-----------------------------------------------------------------------------
 std::ostream& operator<<(std::ostream& os, const std::vector<std::vector<int>>& vectors) {
-    os << "vector<int> = { ";
+    os << "[Sets] \n";
     for (size_t i = 0; i < vectors.size(); ++i) {
-        os << " " << vectors[i];
-        if (i + 1 < vectors.size()) os << ",";
+        os << "["  << i << "]" << vectors[i];
     }
-    os << " } " << '\n';
     return os;
 }

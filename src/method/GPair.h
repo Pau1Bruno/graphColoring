@@ -34,12 +34,14 @@ buildGPairsHV(const Graph& g, const std::vector<int>& omega)
     std::vector<GPair> out;
     out.reserve(omega.size()*omega.size()/2);
 
+    const auto& Hsets = g.Hsets();
+    const auto& Vsets = g.Vsets();
+
     for (int i = 0; i < n; ++i) {
         for (int j = i + 1; j < n; ++j) {
-            int Q = i + 1, R = j + 1;
-            const auto& Hsets = g.Hsets();
-            const auto& Vsets = g.Vsets();
-            if (!contains(omega, Q) || !contains(omega, R)) continue;
+            const int I = i + 1, J = j + 1;
+
+            if (!contains(omega, I) || !contains(omega, J)) continue;
 
             std::vector<int> d_qr, d_rq;
             for (int el : Hsets[i])
@@ -48,13 +50,13 @@ buildGPairsHV(const Graph& g, const std::vector<int>& omega)
             for (int el : Hsets[j])
                 if (contains(Vsets[i], el) && contains(omega, el)) d_rq.push_back(el);
 
-            std::vector<int> Dqr;
+            std::vector<int> Dij;
             for (int el : d_qr)
-                if (contains(d_rq, el)) Dqr.push_back(el);
+                if (contains(d_rq, el)) Dij.push_back(el);
 
-            if (!contains(Dqr, Q) || !contains(Dqr, R)) continue;
+            if (!contains(Dij, I) || !contains(Dij, J)) continue;
 
-            out.push_back({Q, R, std::move(Dqr)});
+            out.push_back({I, J, std::move(Dij)});
         }
     }
     std::sort(out.begin(), out.end(),
@@ -64,6 +66,5 @@ buildGPairsHV(const Graph& g, const std::vector<int>& omega)
             return a.j < b.j;
         });
 
-    // std::cout << out;
     return out;
 }
