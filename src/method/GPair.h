@@ -39,9 +39,7 @@ buildGPairsHV(const Graph& g, const std::vector<int>& omega)
 
     for (int i = 0; i < n; ++i) {
         for (int j = i + 1; j < n; ++j) {
-            const int I = i + 1, J = j + 1;
-
-            if (!contains(omega, I) || !contains(omega, J)) continue;
+            if (!contains(omega, i) || !contains(omega, j)) continue;
 
             std::vector<int> d_qr, d_rq;
             for (int el : Hsets[i])
@@ -54,9 +52,9 @@ buildGPairsHV(const Graph& g, const std::vector<int>& omega)
             for (int el : d_qr)
                 if (contains(d_rq, el)) Dij.push_back(el);
 
-            if (!contains(Dij, I) || !contains(Dij, J)) continue;
+            if (!contains(Dij, i) || !contains(Dij, j)) continue;
 
-            out.push_back({I, J, std::move(Dij)});
+            out.push_back({i, j, std::move(Dij)});
         }
     }
     std::sort(out.begin(), out.end(),

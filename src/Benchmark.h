@@ -3,6 +3,7 @@
 
 #include "algorithms/GreedyColoring.h"
 #include "algorithms/DSaturColoring.h"
+#include "algorithms/GreedyHeuristicsColoring.h"
 
 #include "method/Graph.h"
 #include "method/OlemskoyColorGraph.h"
@@ -130,6 +131,24 @@ static void runOnDense(const DenseMatrix &M,
     }
 }
 
+void printColoring(const greedy::Coloring& solver)
+{
+    // invert: color -> vertices
+    std::unordered_map<int, std::vector<int>> byColor;      // ключи пойдут по возрастанию
+    for (const auto& [v, c] : solver.colors())
+        byColor[c].push_back(v);
+
+    std::cout << "χ = " << solver.chromaticNumber() << '\n';
+    for (const auto& [c, verts] : byColor) {
+        std::cout << "Цвет " << c << ": ";
+        for (size_t i = 0; i < verts.size(); ++i) {
+            std::cout << verts[i];
+            if (i + 1 != verts.size()) std::cout << ", ";
+        }
+        std::cout << '\n';
+    }
+}
+
 // –– Master routine: generates, runs, and reports
 inline void runBenchmarks(int n,
                           const std::vector<double> &densities,
@@ -147,7 +166,10 @@ inline void runBenchmarks(int n,
         {0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
     };
-    runOnDense(TEST_MATRIX, 1, 1, "Dense");
+
+    greedy::Coloring solver(TEST_MATRIX);                   // построили раскраску
+    printColoring(solver);                        // вывели результат
+    // runOnDense(TEST_MATRIX, 1, 1, "Dense");
     // for (double d : densities)
     // {
     //     auto denseList = generateDenseMatrices(n, d, perDensity);

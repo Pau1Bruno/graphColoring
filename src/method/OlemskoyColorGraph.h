@@ -19,7 +19,7 @@ private:
 
     // Recursive search functions
     void searchBlocks(int currentBlockIndex);
-    void buildBlock(int blockIndex, std::vector<int>& currentBlock,const std::vector<int>& omega, int level, int initialSize);
+    void buildBlock(int blockIndex, int level, std::vector<int>& currentBlock,const std::vector<int>& omega);
 
 public:
     // Constructor

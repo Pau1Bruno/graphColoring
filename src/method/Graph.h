@@ -31,8 +31,8 @@ public:
                 adj[i][j] = edge;
 
                 if (!edge) {                 
-                    Hsets_[i].push_back(j + 1);
-                    Vsets_[j].push_back(i + 1);
+                    Hsets_[i].push_back(j);
+                    Vsets_[j].push_back(i);
                 }
             }
         }

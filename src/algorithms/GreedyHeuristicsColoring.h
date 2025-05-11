@@ -1,0 +1,178 @@
+// =====================  olemskoy / graph‑coloring  =====================
+// Этот canvas теперь содержит ДВА самостоятельных заголовочных файла:
+//   1.  OlemskoyColorGraph_logged.hpp  – аккуратная портировка алгоритма Олемской
+//       с подробным логированием (ранее добавлено).
+//   2.  ColoringGreedy.hpp             – перевод JavaScript‑евристики (greedy
+//       с множеством порядков обхода) на C++17.  Он не зависит от первого.
+// -----------------------------------------------------------------------------
+
+/*-----------------------------------------------------------------------------
+ *  ColoringGreedy.hpp  –  версия без зависимости от поля Graph::vertices.
+ *  Граф задаётся только размером N и булевой матрицей смежности
+ *  (метод `adjacency()`, индексирование 0…N‑1).  Все идентификаторы вершин —
+ *  просто их индексы.  Остальная логика не изменилась.
+ *---------------------------------------------------------------------------*/
+
+#pragma once
+#include <vector>
+#include <algorithm>
+#include <random>
+#include <unordered_map>
+#include <numeric>
+#include "../method/Graph.h"
+
+namespace greedy {
+
+struct ColoringResult {
+    int chromaticNumber = 0;                 // χ найденной раскраски
+    std::unordered_map<int,int> colorOf;     // v → цвет (1‑based)
+};
+
+class Coloring {
+public:
+    explicit Coloring(const Graph& g, int maxColor = 1000)
+        : g_(g), n_(g.size()), maxColor_(maxColor) {
+        buildAdjacency();
+        calculate();
+    }
+
+    int  chromaticNumber()  const { return result_.chromaticNumber; }
+    const std::unordered_map<int,int>& colors() const { return result_.colorOf; }
+
+private:
+    /* ---------- данные ---------- */
+    const Graph& g_;
+    int n_;                                    // |V|
+    int maxColor_;
+    std::vector<std::vector<int>> adj_;        // adj_[v] = список соседей v (0‑based)
+    ColoringResult result_;
+
+    /* ---------- построение списка соседей ---- */
+    void buildAdjacency() {
+        const auto& A = g_.adjacency();
+        adj_.resize(n_);
+        for (int i = 0; i < n_; ++i)
+            for (int j = 0; j < n_; ++j)
+                if (A[i][j]) adj_[i].push_back(j);
+    }
+
+    /* ---------- главный цикл ------------------ */
+    void calculate() {
+        // базовый порядок — 0…n‑1
+        std::vector<int> base(n_);
+        std::iota(base.begin(), base.end(), 0);
+
+        std::vector<std::vector<int>> orders;
+        addSimpleAndRandomOrders(orders, base);
+        addBasedOnDegree(orders);
+        addForTree(orders);
+
+        int best = maxColor_;
+        for (const auto& ord : orders) {
+            auto cur = makeColoring(ord);
+            if (cur.chromaticNumber < best) {
+                best   = cur.chromaticNumber;
+                result_ = std::move(cur);
+            }
+        }
+    }
+
+    /* ---------- жадная раскраска -------------- */
+    ColoringResult makeColoring(const std::vector<int>& order) const {
+        ColoringResult res;
+        int bestColor = 0;
+        for (int v : order) {
+            std::unordered_map<int,bool> used;
+            for (int nb : adj_[v])
+                if (res.colorOf.count(nb)) used[ res.colorOf.at(nb) ] = true;
+            int color = 1; while (used.count(color)) ++color;
+            res.colorOf[v] = color;
+            bestColor = std::max(bestColor, color);
+        }
+        res.chromaticNumber = bestColor;
+        return res;
+    }
+
+    /* ---------- генерация порядков ------------ */
+
+    void addSimpleAndRandomOrders(std::vector<std::vector<int>>& lst,
+                                  const std::vector<int>& base) const {
+        lst.push_back(base);        // исходный
+        std::vector<int> tmp(base);
+        std::mt19937 rng(std::random_device{}());
+        int cnt = static_cast<int>(std::sqrt(base.size()));
+        for (int i = 0; i < cnt; ++i) {
+            std::shuffle(tmp.begin(), tmp.end(), rng);
+            lst.push_back(tmp);
+        }
+    }
+
+    void addBasedOnDegree(std::vector<std::vector<int>>& lst) const {
+        struct VD { int v; int deg; };
+        std::vector<VD> vd;
+        for (int v = 0; v < n_; ++v) vd.push_back({v, static_cast<int>(adj_[v].size())});
+        std::sort(vd.begin(), vd.end(), [](auto&a,auto&b){ return a.deg>b.deg; });
+        std::vector<int> order; for (auto& t:vd) order.push_back(t.v);
+        lst.push_back(order);
+
+        auto shLittle = order;
+        for (size_t i=0;i+1<shLittle.size();i+=2) std::swap(shLittle[i], shLittle[i+1]);
+        lst.push_back(shLittle);
+
+        int n = order.size();
+        if (n>1) {
+            std::mt19937 rng(std::random_device{}());
+            auto half = order;
+            int mid = n/2;
+            std::shuffle(half.begin(), half.begin()+mid, rng);
+            std::shuffle(half.begin()+mid, half.end(), rng);
+            lst.push_back(half);
+
+            int extra = static_cast<int>(std::sqrt(n));
+            for (int t=0;t<extra;++t) {
+                int pivot = 1 + rng()%(n-2);
+                auto tmp = order;
+                std::shuffle(tmp.begin(), tmp.begin()+pivot, rng);
+                std::shuffle(tmp.begin()+pivot, tmp.end(), rng);
+                lst.push_back(tmp);
+            }
+        }
+    }
+
+    void addForTree(std::vector<std::vector<int>>& lst) const {
+        struct VD { int v; int deg; };
+        std::vector<VD> vd;
+        for (int v=0; v<n_; ++v) vd.push_back({v, static_cast<int>(adj_[v].size())});
+        std::sort(vd.begin(), vd.end(), [](auto&a,auto&b){return a.deg>b.deg;});
+        std::vector<int> vdOrder; for(auto&x:vd) vdOrder.push_back(x.v);
+
+        auto bfsGen=[&](bool pickMax){
+            std::vector<int> res;
+            std::vector<char> added(n_,0);
+            for(int start: vdOrder){
+                if(added[start]) continue;
+                added[start]=1; res.push_back(start);
+                std::vector<int> q{start};
+                while(true){
+                    bool progress=false;
+                    size_t qs=q.size();
+                    for(size_t qi=0;qi<qs;++qi){
+                        int v=q[qi];
+                        int bestNb=-1, bestDeg=-1;
+                        for(int nb: adj_[v]) if(!added[nb]){
+                            if(!pickMax){ bestNb=nb; break; }
+                            if(static_cast<int>(adj_[nb].size())>bestDeg){bestDeg=adj_[nb].size(); bestNb=nb;}
+                        }
+                        if(bestNb!=-1){ added[bestNb]=1; q.push_back(bestNb); res.push_back(bestNb); progress=true; break;}  
+                    }
+                    if(!progress) break;
+                }
+            }
+            lst.push_back(res);
+        };
+        // bfsGen(false); // simple
+        bfsGen(true);  // choose max‑degree neighbor
+    }
+};
+
+} // namespace greedy

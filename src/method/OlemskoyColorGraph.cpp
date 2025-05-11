@@ -30,10 +30,9 @@ std::vector<std::vector<int>> OlemskoyColorGraph::resultColorNodes()
     currentPartition.clear();
     firstBlockSeen.clear();
 
-    LOG << "\n=== start search ===\n";
+    LOG << "--- Начало алгоритма --- \n";
     searchBlocks(0);
-    LOG << "=== finished;  bestColorCount = "
-        << bestColorCount << " ===\n";
+    LOG << "--- Алгоритм закончен, минимальное количество цветов: " << bestColorCount << " ---\n";
 
     return bestPartition;
 }
@@ -41,19 +40,18 @@ std::vector<std::vector<int>> OlemskoyColorGraph::resultColorNodes()
 /*───────────────────────────────────────────────────────────────*/
 void OlemskoyColorGraph::searchBlocks(int currentBlockIndex)
 {
-    /* все ли вершины уже раскрашены? */
     bool allColored = true;
     for (int v = 0; v < n; ++v)
         if (!used[v]) { allColored = false; break; }
 
     if (allColored) {
         int blocksUsed = currentBlockIndex;     
-        LOG << "All vertices colored with " << blocksUsed
-            << " blocks\n";
+        LOG << "Все вершины покрашены в " << blocksUsed
+            << " блоков/блока\n";
         if (blocksUsed < bestColorCount) {
             bestColorCount = blocksUsed;
             bestPartition  = currentPartition;
-            LOG << "  new optimum!\n";
+            LOG << "Найдено меньшее хроматическое число! Оно равно " << bestColorCount << " \n";
         }
         return;
     }
@@ -61,132 +59,132 @@ void OlemskoyColorGraph::searchBlocks(int currentBlockIndex)
     /* Ω */
     std::vector<int> omega;
     for (int v = 0; v < n; ++v)
-        if (!used[v]) omega.push_back(v + 1);
-
-    LOG << "\n Current Ω " << omega << '\n';
+        if (!used[v]) omega.push_back(v);
 
     /* запускаем построение блока */
-    std::vector<int> curBlock;     
+    std::vector<int> currentBlock;     
     buildBlock(currentBlockIndex,
-               curBlock,
-               omega,                 
-               1,                    
-               (int)omega.size());
+                0,
+               currentBlock,
+               omega);
 }
 
 /*───────────────────────────────────────────────────────────────*/
-void OlemskoyColorGraph::buildBlock(int                     blockIdx,
-                                    std::vector<int>&       curBlock,
-                                    const std::vector<int>& omega, // 1-idx
+void OlemskoyColorGraph::buildBlock(int                     blockIndex,
                                     int                     level,
-                                    int                     initialΩ)
+                                    std::vector<int>&       currentBlock,
+                                    const std::vector<int>& omega)
 {
     /*— блок закрыт —*/
     if (omega.empty()) {
-        LOG << "current block end: " << curBlock << "\n";
-        currentPartition.push_back(curBlock);
-        LOG << "current partition: " << currentPartition << "\n";
-        searchBlocks(blockIdx + 1);
+        LOG << "Опорное множество пусто \n";
+        LOG << "Блок(" << blockIndex << ", " << level << "): " << currentBlock << "\n";
+        currentPartition.push_back(currentBlock);
+        LOG << "Текущий набор блоков: " << currentPartition << "\n";
+        searchBlocks(blockIndex + 1);
         currentPartition.pop_back();
         return;
     }
 
-    /*— пары  (i,j)  по H/V —*/
-    auto gPairs = buildGPairsHV(g, omega);
-    LOG << "GPairs " << gPairs << '\n';
+    LOG << "Опорное множество(" << blockIndex << ", " << level << "): " << omega << "\n";
 
+    auto gPairs = buildGPairsHV(g, omega);
+    LOG << "Возможные варианты продолжений " << gPairs << '\n';
+
+    LOG << "Номер текущего блока: " << blockIndex << ", уровень: " << level << '\n';
 
     /* проверка типа A */
-    if (!gPairs.empty() && (blockIdx + omega.size() / (int)gPairs[0].set.size() >= bestColorCount)) {
-        LOG << "Prune A " << "[" << blockIdx << "]: " << " ≥ best\n";
+    int ro  = (int)gPairs[0].set.size();
+    if (ro == 0) ro = 1;
 
-        return;
+    if (blockIndex != 0 && !gPairs.empty()) {
+        LOG << "Проверка A [" << blockIndex << "] " << blockIndex << " + " << (int)omega.size() / ro << " < " << bestColorCount << "\n";
+        if (blockIndex + (int)omega.size() / ro > bestColorCount) {
+            LOG << "проверка A провалена, возврат к построению предыдущего блока blockIndex:= blockIndex - 1 \n";
+            std::vector<int> empty = {};
+            return buildBlock(blockIndex-1, 0, empty, omega);
+        } else {
+            LOG << "проверка A пройдена \n";
+        }
+    } 
+
+    /* Проверка B — только для первого блока */
+    if (blockIndex == 0) {
+        int potential = 2 * (level) + ro;
+        int flooredDiv = n / bestColorCount;
+        LOG << "Проверка В [" << blockIndex << "] " << 2 * (level) << " + " << ro << " > " << flooredDiv << "\n";
+        if (potential > flooredDiv) {
+            LOG << "проверка В успешна, продолжаем построение \n";
+        } else {
+            LOG << "проверка В провалена, возврат к предыдущему уровню level:= level - 1 \n";
+            std::vector<int> empty = {};
+             return buildBlock(blockIndex-1, 0, empty, omega);
+        }
     }
 
-    if (bestColorCount == 2) return;
-  
+    if (blockIndex + 2 == bestColorCount) {
+        LOG << "Проверка С [" << blockIndex << "] " << blockIndex + 2 << " ?= " << bestColorCount << "\n";
+        LOG << "Проверка С [" << blockIndex << "] " << 2*(level) + ro << " ?= " << omega.size() << "\n";
+        if (blockIndex + 2 == bestColorCount && 2*(level) + ro == omega.size()) {
+            LOG << "проверка C провалена, возврат к построению предыдущего блока blockIndex:= blockIndex - 1 \n";
+            std::vector<int> empty = {};
+            return buildBlock(blockIndex-1, 0, empty, omega);
+        } else {
+            LOG << "проверка C провалена \n";
+        }   
+    }
 
-    /*— основной перебор пар —*/
+    /*— Перебор возможных продолжений —*/
     for (const auto& pr : gPairs)
     {
-        int i  = pr.i - 1;              // перевод в 0-индекс
-        int j  = pr.j - 1;
         int ro  = (int)pr.set.size();
-        if (ro == 0) ro = 1;              // правило GetRo
+        if (ro == 0) ro = 1;
 
-        /* Prune B — только для первого блока */
-        if (blockIdx == 0) {
-            int potential = 2 * (level - 1) + ro;
-            int avgTarget = (n + bestColorCount - 1) / bestColorCount;
-            LOG << "  test pair ("<<i+1<<","<<j+1<<")  ro="<<ro
-                << "  potential="<<potential
-                << "  avg="<<avgTarget << '\n';
-            if (potential < avgTarget) { LOG << "  Prune B\n"; continue; }
+        /*—— Добавляем (i,j) в текущий блок ——*/
+        used[pr.i] = used[pr.j] = true;
+        currentBlock.push_back(pr.i);
+        currentBlock.push_back(pr.j);
+        std::sort(currentBlock.begin(), currentBlock.end());
 
-            /* Prune D (симметрия) */
-            int ceilDiv = (n + ro - 1) / ro;
-            if (ceilDiv == bestColorCount
-                || ceilDiv == bestColorCount - 1) {
-                LOG << "  Prune D\n"; continue;
-            }
+        /*—— Новое опорное множество ——*/
+        std::vector<int> updatedOmega;
+        for (int node : omega) {
+            std::cout << node << std::endl;
+            if (node == pr.i || node == pr.j) continue;
+            if (!g.areAdjacent(pr.i,node) && !g.areAdjacent(pr.j,node)) updatedOmega.push_back(node);  
         }
 
-        /* Prune C — “ничего лучше не выйдет” */
-        if (blockIdx + 1 == bestColorCount &&
-            2*(level-1) + (int)curBlock.size() + 2 + ro == initialΩ) {
-            LOG << "  Prune C\n"; continue;
-        }
-
-        /*—— добавляем (i,j) в текущий блок ——*/
-        used[i] = used[j] = true;
-        curBlock.push_back(i);
-        curBlock.push_back(j);
-        std::sort(curBlock.begin(), curBlock.end());
-
-        /*—— новое Ω ——*/
-        std::vector<int> nextΩ;
-        for (int w1 : omega) {
-            int w = w1 - 1;
-            if (w == i || w == j) continue;
-            if (!g.areAdjacent(i,w) && !g.areAdjacent(j,w))
-                nextΩ.push_back(w1);           // 1-index!
-        }
-
-        buildBlock(blockIdx,
-                   curBlock,
-                   nextΩ,
-                   level + 1,
-                   initialΩ);
+        buildBlock(blockIndex,
+                    level + 1,
+                   currentBlock,
+                   updatedOmega);
 
         /* откат */
-        curBlock.erase(std::remove(curBlock.begin(),curBlock.end(),i),
-                       curBlock.end());
-        curBlock.erase(std::remove(curBlock.begin(),curBlock.end(),j),
-                       curBlock.end());
-        used[i] = used[j] = false;
+        currentBlock.erase(std::remove(currentBlock.begin(),currentBlock.end(),pr.i),
+                       currentBlock.end());
+        currentBlock.erase(std::remove(currentBlock.begin(),currentBlock.end(),pr.j),
+                       currentBlock.end());
+        used[pr.i] = used[pr.j] = false;
     }
 
-    /*———— ветка-“одиночка” ————*/
     for (int k = (int)omega.size() - 1; k >= 0; --k) {
-        int v1 = omega[k];           // 1-idx
-        int v  = v1 - 1;              // 0-idx
+        int v = omega[k];                
 
-        if (blockIdx + 1 == bestColorCount &&
-            2*(level-1) + (int)curBlock.size() + 1 == initialΩ)
+        if (blockIndex + 2 == bestColorCount &&
+            2*(level) + (int)currentBlock.size() + 1 == bestColorCount)
             continue;
 
-        LOG << "  single " << v+1 << '\n';
+        LOG << "  single " << v << '\n';
 
         used[v] = true;
-        curBlock.push_back(v);
+        currentBlock.push_back(v);
 
-        buildBlock(blockIdx,
-                   curBlock,
-                   {},                 // пустое Ω
-                   level + 1,
-                   initialΩ);
+        buildBlock(blockIndex,
+                    level + 1,
+                   currentBlock,
+                   {});
 
-        curBlock.pop_back();
+        currentBlock.pop_back();
         used[v] = false;
     }
 }
