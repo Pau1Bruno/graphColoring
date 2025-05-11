@@ -21,7 +21,6 @@ OlemskoyColorGraph::OlemskoyColorGraph(const Graph& matrix) : g(matrix)
     n              = g.size();
     bestColorCount = n;
     used.assign(n, false);
-    currentNodes.assign(n, false);
     LOG << "Graph n = " << n << '\n';
 }
 
@@ -59,45 +58,12 @@ void OlemskoyColorGraph::searchBlocks(int currentBlockIndex)
         return;
     }
 
-    /* отсечение A */
-    if (currentBlockIndex >= bestColorCount) {
-        LOG << "Prune A: blkIdx=" << currentBlockIndex
-            << " ≥ best\n";
-        return;
-    }
-
-    /* Ω (1-индексация) */
+    /* Ω */
     std::vector<int> omega;
     for (int v = 0; v < n; ++v)
         if (!used[v]) omega.push_back(v + 1);
 
     LOG << "\n Current Ω " << omega << '\n';
-
-    /* нижняя граница через макс. клику */
-    int                 maxClique = 0;
-    std::vector<int>    clique;
-
-    std::function<void(int)> dfs = [&](int start){
-        for (int i = start; i < (int)omega.size(); ++i) {
-            int v = omega[i] - 1;                     // 0-index
-            bool ok = true;
-            for (int u1 : clique)
-                if (!g.areAdjacent(u1, v)) { ok = false; break; }
-            if (!ok) continue;
-            clique.push_back(v);
-            maxClique = std::max(maxClique,(int)clique.size());
-            dfs(i + 1);
-            clique.pop_back();
-        }
-    };
-    dfs(0);
-
-    if (currentBlockIndex + maxClique >= bestColorCount) {
-        LOG << "Prune A: lower bound "
-            << currentBlockIndex + maxClique
-            << " ≥ best " << bestColorCount << '\n';
-        return;
-    }
 
     /* запускаем построение блока */
     std::vector<int> curBlock;     
@@ -117,7 +83,9 @@ void OlemskoyColorGraph::buildBlock(int                     blockIdx,
 {
     /*— блок закрыт —*/
     if (omega.empty()) {
+        LOG << "current block end: " << curBlock << "\n";
         currentPartition.push_back(curBlock);
+        LOG << "current partition: " << currentPartition << "\n";
         searchBlocks(blockIdx + 1);
         currentPartition.pop_back();
         return;
@@ -126,6 +94,17 @@ void OlemskoyColorGraph::buildBlock(int                     blockIdx,
     /*— пары  (i,j)  по H/V —*/
     auto gPairs = buildGPairsHV(g, omega);
     LOG << "GPairs " << gPairs << '\n';
+
+
+    /* проверка типа A */
+    if (!gPairs.empty() && (blockIdx + omega.size() / (int)gPairs[0].set.size() >= bestColorCount)) {
+        LOG << "Prune A " << "[" << blockIdx << "]: " << " ≥ best\n";
+
+        return;
+    }
+
+    if (bestColorCount == 2) return;
+  
 
     /*— основной перебор пар —*/
     for (const auto& pr : gPairs)

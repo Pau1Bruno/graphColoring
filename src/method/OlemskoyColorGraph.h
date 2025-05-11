@@ -14,7 +14,6 @@ private:
 
     // Tracking for search state
     std::vector<bool> used;                        // which vertices are already colored (used in previous blocks)
-    std::vector<int> currentNodes;                 // which vertices in current block are already colored (used in previous blocks)
     std::vector<std::vector<int>> currentPartition; // current partial coloring (blocks built so far)
     std::unordered_set<long long> firstBlockSeen;   // memory of first-block configurations (for symmetry pruning D)
 
