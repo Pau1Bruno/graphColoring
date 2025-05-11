@@ -36,8 +36,6 @@ public:
                 }
             }
         }
-
-        std::cout << Hsets_;
     }
 
     // Number of vertices
