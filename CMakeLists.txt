@@ -42,8 +42,6 @@ find_package(Threads REQUIRED)
 # Executable
 add_executable(graph_coloring
   src/main.cpp
-  src/algorithms/GreedyColoring.cpp
-  src/algorithms/DSaturColoring.cpp
   src/method/Graph.cpp
   src/method/OlemskoyColorGraph.cpp
   src/method/Utils.cpp

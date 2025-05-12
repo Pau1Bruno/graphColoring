@@ -18,6 +18,24 @@
 
 using Clock = std::chrono::high_resolution_clock;
 
+void printColoring(const greedy::Coloring& solver)
+{
+    // invert: color -> vertices
+    std::unordered_map<int, std::vector<int>> byColor;      // ключи пойдут по возрастанию
+    for (const auto& [v, c] : solver.colors())
+        byColor[c].push_back(v);
+
+    std::cout << "χ = " << solver.chromaticNumber() << '\n';
+    for (const auto& [c, verts] : byColor) {
+        std::cout << "Цвет " << c << ": ";
+        for (size_t i = 0; i < verts.size(); ++i) {
+            std::cout << verts[i];
+            if (i + 1 != verts.size()) std::cout << ", ";
+        }
+        std::cout << '\n';
+    }
+}
+
 // –– Utility: generate 'count' symmetric dense matrices of size n×n with given density
 static std::vector<DenseMatrix>
 generateDenseMatrices(int n, double density, int count)
@@ -96,14 +114,21 @@ static void runOnDense(const DenseMatrix &M,
                                 { return DSaturColoring::color(M); });
     int colorsD = *std::max_element(dsatSol.begin(), dsatSol.end()) + 1;
 
+    auto [greedHSol, tGH] = timeit([&] {           // ❶ строим объект
+        return greedy::Coloring{M};                 //   ← вернуть без имени!
+    });
+
+    printColoring(greedHSol);                          // вывод результата
+    std::cout << "Время: " << tGH << " c\n";
+
     // 3) Olemskoy
-    auto [olemSol, tO] = timeit([&]
-                                {
-                                    Graph G(M);
-                                    OlemskoyColorGraph ocg(G);
-                                    return ocg.resultColorNodes(); // now returns by value
-                                });
-    int colorsO = (int)olemSol.size();
+    // auto [olemSol, tO] = timeit([&]
+    //                             {
+    //                                 Graph G(M);
+    //                                 OlemskoyColorGraph ocg(G);
+    //                                 return ocg.resultColorNodes(); // now returns by value
+    //                             });
+    // int colorsO = (int)olemSol.size();
 
     // Print summary header
     std::cout
@@ -117,36 +142,18 @@ static void runOnDense(const DenseMatrix &M,
     // Print dsatur groups
     printFlatColoring(dsatSol, colorsD);
 
-    std::cout
-        << "  Olemskoy: colors=" << colorsO << "  time=" << tO << " s\n";
-    // Print olem groups
-    for (int c = 0; c < colorsO; ++c)
-    {
-        std::cout << "    Color " << c << ":";
-        for (int v : olemSol[c])
-        {
-            std::cout << " " << v;
-        }
-        std::cout << "\n";
-    }
-}
-
-void printColoring(const greedy::Coloring& solver)
-{
-    // invert: color -> vertices
-    std::unordered_map<int, std::vector<int>> byColor;      // ключи пойдут по возрастанию
-    for (const auto& [v, c] : solver.colors())
-        byColor[c].push_back(v);
-
-    std::cout << "χ = " << solver.chromaticNumber() << '\n';
-    for (const auto& [c, verts] : byColor) {
-        std::cout << "Цвет " << c << ": ";
-        for (size_t i = 0; i < verts.size(); ++i) {
-            std::cout << verts[i];
-            if (i + 1 != verts.size()) std::cout << ", ";
-        }
-        std::cout << '\n';
-    }
+    // std::cout
+    //     << "  Olemskoy: colors=" << colorsO << "  time=" << tO << " s\n";
+    // // Print olem groups
+    // for (int c = 0; c < colorsO; ++c)
+    // {
+    //     std::cout << "    Color " << c << ":";
+    //     for (int v : olemSol[c])
+    //     {
+    //         std::cout << " " << v;
+    //     }
+    //     std::cout << "\n";
+    // }
 }
 
 // –– Master routine: generates, runs, and reports
@@ -154,28 +161,27 @@ inline void runBenchmarks(int n,
                           const std::vector<double> &densities,
                           int perDensity)
 {
-    DenseMatrix TEST_MATRIX {
-        {0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
-        {0, 1, 0, 1, 1, 1, 0, 0, 0, 0},
-        {1, 0, 1, 0, 0, 0, 1, 1, 0, 0},
-        {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
-        {1, 0, 1, 0, 0, 0, 0, 1, 1, 0},
-        {0, 1, 0, 0, 1, 1, 0, 0, 0, 1},
-        {0, 0, 0, 1, 0, 1, 0, 0, 0, 0},
-        {0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
-    };
+    // DenseMatrix TEST_MATRIX {
+    //     {0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+    //     {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+    //     {0, 1, 0, 1, 1, 1, 0, 0, 0, 0},
+    //     {1, 0, 1, 0, 0, 0, 1, 1, 0, 0},
+    //     {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+    //     {1, 0, 1, 0, 0, 0, 0, 1, 1, 0},
+    //     {0, 1, 0, 0, 1, 1, 0, 0, 0, 1},
+    //     {0, 0, 0, 1, 0, 1, 0, 0, 0, 0},
+    //     {0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+    //     {0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+    // };
 
-    greedy::Coloring solver(TEST_MATRIX);                   // построили раскраску
-    printColoring(solver);                        // вывели результат
+   
     // runOnDense(TEST_MATRIX, 1, 1, "Dense");
-    // for (double d : densities)
-    // {
-    //     auto denseList = generateDenseMatrices(n, d, perDensity);
-    //     for (int i = 0; i < perDensity; ++i)
-    //     {
-    //         runOnDense(denseList[i], d, i, "Dense");
-    //     }
-    // }
+    for (double d : densities)
+    {
+        auto denseList = generateDenseMatrices(n, d, perDensity);
+        for (int i = 0; i < perDensity; ++i)
+        {
+            runOnDense(denseList[i], d, i, "Dense");
+        }
+    }
 }
