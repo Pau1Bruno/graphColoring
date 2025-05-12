@@ -3,15 +3,9 @@
 #include <algorithm>
 #include <numeric>
 
-/*  =====  DSaturColoring — итоговая версия  =================================
- *  Вход:  либо списки смежности  adj[v] (0-based),
- *         либо 0/1-матрица (Eigen или std::vector<std::vector<int>>).
- *  Выход: vector<int> color[v]  — цвета 0…χ-1  (χ = 1 + max(color)).
- *  ------------------------------------------------------------------------*/
-
 class DSaturColoring
 {
-private:                            /* =============== core =============== */
+private:                          
     static std::vector<int>
     colorAdj(const std::vector<std::vector<int>>& g)
     {
@@ -27,7 +21,7 @@ private:                            /* =============== core =============== */
         auto pop_max = [&]() -> int {
             while (curMaxSat >= 0 && bucket[curMaxSat].empty()) --curMaxSat;
             auto &vec = bucket[curMaxSat];
-            /*   tie-break: берём вершину с max degree   */
+            /*   tie-break: берём вершину с наибольшей степенью   */
             auto it = std::max_element(vec.begin(), vec.end(),
                        [&](int a,int b){ return degree[a] < degree[b]; });
             int v = *it;
@@ -72,7 +66,7 @@ private:                            /* =============== core =============== */
         return color;
     }
 
-public:                             /* =========  API  ========= */
+public:        
 
     /* --- списки смежности --- */
     static std::vector<int> color(const std::vector<std::vector<int>>& g)

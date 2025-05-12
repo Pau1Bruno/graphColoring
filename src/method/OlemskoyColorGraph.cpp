@@ -94,10 +94,9 @@ void OlemskoyColorGraph::buildBlock(int                     blockIndex,
     LOG << "Номер текущего блока: " << blockIndex << ", уровень: " << level << '\n';
 
     /* проверка типа A */
-    int ro  = (int)gPairs[0].set.size();
-    if (ro == 0) ro = 1;
-
     if (blockIndex != 0 && !gPairs.empty()) {
+        int ro  = (int)gPairs[0].set.size();
+        if (ro == 0) ro = 1;
         LOG << "Проверка A [" << blockIndex << "] " << blockIndex << " + " << (int)omega.size() / ro << " < " << bestColorCount << "\n";
         if (blockIndex + (int)omega.size() / ro > bestColorCount) {
             LOG << "проверка A провалена, возврат к построению предыдущего блока blockIndex:= blockIndex - 1 \n";
@@ -109,7 +108,9 @@ void OlemskoyColorGraph::buildBlock(int                     blockIndex,
     } 
 
     /* Проверка B — только для первого блока */
-    if (blockIndex == 0) {
+    if (blockIndex == 0 && !gPairs.empty()) {
+        int ro  = (int)gPairs[0].set.size();
+        if (ro == 0) ro = 1;
         int potential = 2 * (level) + ro;
         int flooredDiv = n / bestColorCount;
         LOG << "Проверка В [" << blockIndex << "] " << 2 * (level) << " + " << ro << " > " << flooredDiv << "\n";
@@ -122,7 +123,9 @@ void OlemskoyColorGraph::buildBlock(int                     blockIndex,
         }
     }
 
-    if (blockIndex + 2 == bestColorCount) {
+    if (blockIndex + 2 == bestColorCount && !gPairs.empty()) {
+        int ro  = (int)gPairs[0].set.size();
+        if (ro == 0) ro = 1;
         LOG << "Проверка С [" << blockIndex << "] " << blockIndex + 2 << " ?= " << bestColorCount << "\n";
         LOG << "Проверка С [" << blockIndex << "] " << 2*(level) + ro << " ?= " << omega.size() << "\n";
         if (blockIndex + 2 == bestColorCount && 2*(level) + ro == omega.size()) {

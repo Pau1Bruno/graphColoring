@@ -1,49 +1,60 @@
+// GreedyHeuristicsColoring.hpp
 #pragma once
 #include <vector>
 #include <algorithm>
 #include <random>
 #include <unordered_map>
 #include <numeric>
-#include "../method/Graph.h"
 
 namespace greedy {
 
+/* ---------- результат ---------- */
 struct ColoringResult {
-    int chromaticNumber = 0;                 // χ найденной раскраски
-    std::unordered_map<int,int> colorOf;     // v → цвет (1‑based)
+    int chromaticNumber = 0;                 // χ
+    std::unordered_map<int,int> colorOf;     // v → цвет (1-based)
 };
 
-class Coloring {
+/* ---------- основной класс ----- */
+template<class Matrix>
+class Coloring
+{
 public:
-    explicit Coloring(const Graph& g, int maxColor = 1000)
-        : g_(g), n_(g.size()), maxColor_(maxColor) {
-        buildAdjacency();
+    explicit Coloring(const Matrix& M, int maxColor = 1000)
+        : n_(M.rows()), maxColor_(maxColor)
+    {
+        buildAdjacency(M);
         calculate();
     }
 
     int  chromaticNumber()  const { return result_.chromaticNumber; }
     const std::unordered_map<int,int>& colors() const { return result_.colorOf; }
 
-private:
-    /* ---------- данные ---------- */
-    const Graph& g_;
-    int n_;                                    // |V|
-    int maxColor_;
-    std::vector<std::vector<int>> adj_;        // adj_[v] = список соседей v (0‑based)
-    ColoringResult result_;
-
-    /* ---------- построение списка соседей ---- */
-    void buildAdjacency() {
-        const auto& A = g_.adjacency();
-        adj_.resize(n_);
-        for (int i = 0; i < n_; ++i)
-            for (int j = 0; j < n_; ++j)
-                if (A[i][j]) adj_[i].push_back(j);
+    /* статический шорт-кат, если объект класс не нужен */
+    static ColoringResult run(const Matrix& M, int maxColor = 1000)
+    {
+        return Coloring(M, maxColor).result_;
     }
 
-    /* ---------- главный цикл ------------------ */
+private:
+    /* ---------- данные ---------- */
+    int n_;                                    // |V|
+    int maxColor_;
+    std::vector<std::vector<int>> adj_;        // списки смежности
+    ColoringResult result_;
+
+    /* ---------- строим adj из матрицы ---- */
+    void buildAdjacency(const Matrix& A) {
+        adj_.assign(n_, {});
+        for (int i = 0; i < n_; ++i)
+            for (int j = i + 1; j < n_; ++j)
+                if (A(i,j)) {                  // 1 = «есть ребро»
+                    adj_[i].push_back(j);
+                    adj_[j].push_back(i);
+                }
+    }
+
+    /* ---------- главный цикл ------------- */
     void calculate() {
-        // базовый порядок — 0…n‑1
         std::vector<int> base(n_);
         std::iota(base.begin(), base.end(), 0);
 
@@ -62,7 +73,7 @@ private:
         }
     }
 
-    /* ---------- жадная раскраска -------------- */
+    /* ---------- жадная раскраска ---------- */
     ColoringResult makeColoring(const std::vector<int>& order) const {
         ColoringResult res;
         int bestColor = 0;
@@ -70,19 +81,19 @@ private:
             std::unordered_map<int,bool> used;
             for (int nb : adj_[v])
                 if (res.colorOf.count(nb)) used[ res.colorOf.at(nb) ] = true;
-            int color = 1; while (used.count(color)) ++color;
-            res.colorOf[v] = color;
-            bestColor = std::max(bestColor, color);
+
+            int c = 1; while (used.count(c)) ++c;
+            res.colorOf[v] = c;
+            bestColor = std::max(bestColor, c);
         }
         res.chromaticNumber = bestColor;
         return res;
     }
 
-    /* ---------- генерация порядков ------------ */
-
+    /* ---------- генерация порядков -------- */
     void addSimpleAndRandomOrders(std::vector<std::vector<int>>& lst,
                                   const std::vector<int>& base) const {
-        lst.push_back(base);        // исходный
+        lst.push_back(base);                     // исходный
         std::vector<int> tmp(base);
         std::mt19937 rng(std::random_device{}());
         int cnt = static_cast<int>(std::sqrt(base.size()));
@@ -155,8 +166,7 @@ private:
             }
             lst.push_back(res);
         };
-        // bfsGen(false); // simple
-        bfsGen(true);  // choose max‑degree neighbor
+        bfsGen(true);  // вариация с «max-degree neighbor»
     }
 };
 
