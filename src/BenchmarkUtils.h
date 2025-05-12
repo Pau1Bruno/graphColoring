@@ -13,7 +13,7 @@
 #include <type_traits>
 
 #include "algorithms/GreedyHeuristicsColoring.h" 
-#include "method/Graph.h"; 
+#include "method/Graph.h"
 
 using Clock = std::chrono::high_resolution_clock;
 
@@ -68,7 +68,6 @@ inline void printColoring(const std::vector<std::vector<int>>& groups)
         std::cout << '\n';
     }
 }
-
 /*------------------------------------------------------------------*
  |  generateDenseMatrices: produce symmetric random 0/1 matrices
  *------------------------------------------------------------------*/

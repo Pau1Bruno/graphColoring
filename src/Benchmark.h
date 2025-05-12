@@ -4,6 +4,7 @@
 #include "algorithms/GreedyColoring.h"
 #include "algorithms/DSaturColoring.h"
 #include "algorithms/GreedyHeuristicsColoring.h"
+#include "algorithms/DSaturBnB.h"
 
 #include "method/Graph.h"
 #include "method/OlemskoyColorGraph.h"
@@ -56,7 +57,17 @@ static void runOnDense(const DenseMatrix &M,
     std::cout << (isProperColoring(M, greedHObj) ? "✔ корректно\n\n"
                                              : "✖ конфликт!\n\n");
 
-    
+    // 4) DSATUR-BnB — гарантировано минимальное χ
+    auto [bnbColorVec, tDBnB] = timeit([&]{ return DSaturBnB::color(M); });
+    std::cout << "DSATUR-BnB (точный):\n";
+    printColoring(bnbColorVec);
+    std::cout << "Время: " << tDBnB << " c\n\n";
+    std::cout << (isProperColoring(M, bnbColorVec, false) ? "✔ корректно\n\n"
+                                                     : "✖ конфликт!\n\n");
+}
+
+
+
     // 4) Метод Олемского
     //     auto [olemSol, tO] = timeit([&]{ 
     //     Graph G(M);
@@ -65,7 +76,6 @@ static void runOnDense(const DenseMatrix &M,
     // });
     // printColoring(olemSol);
     // std::cout << "Время: " << tO << " c\n\n";
-}
 
 // Запуск алгоритмов по начальным данным
 inline void runBenchmarks(int n,
