@@ -80,7 +80,10 @@ public:
         std::vector<std::vector<int>> adj(n);
         for (int i = 0; i < n; ++i)
             for (int j = 0; j < n; ++j)
-                if (M(i,j)) adj[i].push_back(j);
+                if (M(i,j)){ 
+                    adj[i].push_back(j);
+                    adj[j].push_back(i);
+                }
         return colorAdj(adj);
     }
 };

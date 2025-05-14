@@ -15,7 +15,11 @@ public:
         std::vector<int> degree(n,0);
         for (int i=0;i<n;++i)
             for (int j=0;j<n;++j)
-                if (adj(i,j)) { g[i].push_back(j); ++degree[i]; }
+                if (i!=j && adj(i,j)) { 
+                    g[i].push_back(j);
+                    g[j].push_back(i);   
+                    ++degree[i]; 
+                }
 
         /* ---------- 2. Welsh–Powell порядок (степень ↓) ------------------- */
         std::vector<int> order(n);
