@@ -19,7 +19,8 @@ static std::ofstream LOG("olemskoy_steps.txt");
 OlemskoyColorGraph::OlemskoyColorGraph(const Graph& matrix) : g(matrix)
 {
     n              = g.size();
-    bestColorCount = n;
+    bestColorCount = -1;
+    bestColorBottomLineColor = n;
     used.assign(n, false);
     LOG << "Graph n = " << n << '\n';
 }
@@ -48,6 +49,12 @@ void OlemskoyColorGraph::searchBlocks(int currentBlockIndex)
         int blocksUsed = currentBlockIndex;     
         LOG << "Все вершины покрашены в " << blocksUsed
             << " блоков/блока\n";
+
+        if (bestColorBottomLineColor == currentBlockIndex) {
+            LOG << "Раскраска найдена \n";
+            return;
+        }
+        
         if (blocksUsed < bestColorCount) {
             bestColorCount = blocksUsed;
             bestPartition  = currentPartition;
@@ -55,6 +62,8 @@ void OlemskoyColorGraph::searchBlocks(int currentBlockIndex)
         }
         return;
     }
+
+    LOG << "WTF \n";
 
     /* Ω */
     std::vector<int> omega;
@@ -107,7 +116,7 @@ void OlemskoyColorGraph::buildBlock(int                     blockIndex,
         }
     } 
 
-    /* Проверка B — только для первого блока */
+    /* Проверка типа B — только для первого блока */
     if (blockIndex == 0 && !gPairs.empty()) {
         int ro  = (int)gPairs[0].set.size();
         if (ro == 0) ro = 1;
@@ -116,6 +125,9 @@ void OlemskoyColorGraph::buildBlock(int                     blockIndex,
         LOG << "Проверка В [" << blockIndex << "] " << 2 * (level) << " + " << ro << " > " << flooredDiv << "\n";
         if (potential > flooredDiv) {
             LOG << "проверка В успешна, продолжаем построение \n";
+            int theBestCount = (n + ro - 1) / ro;
+            bestColorBottomLineColor = theBestCount;
+            LOG << "Получена оценка снизу хроматического числа, оно равно: " << bestColorBottomLineColor << "\n";
         } else {
             LOG << "проверка В провалена, возврат к предыдущему уровню level:= level - 1 \n";
             std::vector<int> empty = {};
@@ -123,6 +135,7 @@ void OlemskoyColorGraph::buildBlock(int                     blockIndex,
         }
     }
 
+    /* Проверка типа С */
     if (blockIndex + 2 == bestColorCount && !gPairs.empty()) {
         int ro  = (int)gPairs[0].set.size();
         if (ro == 0) ro = 1;

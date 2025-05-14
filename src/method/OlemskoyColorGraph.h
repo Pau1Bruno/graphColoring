@@ -10,6 +10,7 @@ private:
     Graph g;
     int n;
     int bestColorCount;
+    int bestColorBottomLineColor;
     std::vector<std::vector<int>> bestPartition;
 
     // Tracking for search state

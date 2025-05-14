@@ -1,4 +1,3 @@
-// GreedyHeuristicsColoring.hpp
 #pragma once
 #include <vector>
 #include <algorithm>
@@ -47,7 +46,7 @@ private:
         adj_.assign(n_, {});
         for (int i = 0; i < n_; ++i)
             for (int j = i + 1; j < n_; ++j)
-                if (A(i,j)) {                  // 1 = «есть ребро»
+                if (A(i,j)) {              
                     adj_[i].push_back(j);
                     adj_[j].push_back(i);
                 }
@@ -170,4 +169,4 @@ private:
     }
 };
 
-} // namespace greedy
+}
