@@ -18,7 +18,7 @@ template<class Matrix>
 class Coloring
 {
 public:
-    explicit Coloring(const Matrix& M, int maxColor = 1000)
+    explicit Coloring(const Matrix& M, int maxColor = 10000)
         : n_(M.rows()), maxColor_(maxColor)
     {
         buildAdjacency(M);

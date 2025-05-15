@@ -31,13 +31,13 @@ inline void printColoring(const greedy::Coloring<Matrix>& solver)
     for (const auto& [v,c] : solver.colors()) byColor[c].push_back(v);
 
     std::cout << "χ = " << solver.chromaticNumber() << '\n';
-    for (auto& [c, vs] : byColor) {
-        std::cout << "Цвет " << c << ": ";
-        for (size_t i = 0; i < vs.size(); ++i)
-            std::cout << vs[i] + 1        // +1 если хотите 1-based вершины
-                      << (i + 1 == vs.size() ? "" : ", ");
-        std::cout << '\n';
-    }
+    // for (auto& [c, vs] : byColor) {
+    //     std::cout << "Цвет " << c << ": ";
+    //     for (size_t i = 0; i < vs.size(); ++i)
+    //         std::cout << vs[i] + 1        // +1 если хотите 1-based вершины
+    //                   << (i + 1 == vs.size() ? "" : ", ");
+    //     std::cout << '\n';
+    // }
 }
 
 inline void printColoring(const std::vector<int>& col)
@@ -48,25 +48,25 @@ inline void printColoring(const std::vector<int>& col)
 
     int chi = byColor.empty() ? 0 : byColor.rbegin()->first;
     std::cout << "χ = " << chi << '\n';
-    for (auto& [c, vs] : byColor) {
-        std::cout << "Цвет " << c << ": ";
-        for (size_t i = 0; i < vs.size(); ++i)
-            std::cout << vs[i] + 1 << (i + 1 == vs.size() ? "" : ", ");
-        std::cout << '\n';
-    }
+    // for (auto& [c, vs] : byColor) {
+    //     std::cout << "Цвет " << c << ": ";
+    //     for (size_t i = 0; i < vs.size(); ++i)
+    //         std::cout << vs[i] + 1 << (i + 1 == vs.size() ? "" : ", ");
+    //     std::cout << '\n';
+    // }
 }
 
 inline void printColoring(const std::vector<std::vector<int>>& groups)
 {
     int chi = static_cast<int>(groups.size());
     std::cout << "χ = " << chi << '\n';
-    for (int c = 0; c < chi; ++c) {
-        std::cout << "Цвет " << (c + 1) << ": ";
-        const auto& verts = groups[c];
-        for (size_t i = 0; i < verts.size(); ++i)
-            std::cout << verts[i] << (i + 1 == verts.size() ? "" : ", ");
-        std::cout << '\n';
-    }
+    // for (int c = 0; c < chi; ++c) {
+    //     std::cout << "Цвет " << (c + 1) << ": ";
+    //     const auto& verts = groups[c];
+    //     for (size_t i = 0; i < verts.size(); ++i)
+    //         std::cout << verts[i] << (i + 1 == verts.size() ? "" : ", ");
+    //     std::cout << '\n';
+    // }
 }
 /*------------------------------------------------------------------*
  |  generateDenseMatrices: produce symmetric random 0/1 matrices

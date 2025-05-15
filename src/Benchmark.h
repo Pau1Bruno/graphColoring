@@ -23,18 +23,18 @@
 #include <string>
 
 // –– Run all three algorithms on a given dense matrix
-static void runOnDense(const DenseMatrix &M,
+static void runOnDense(int n,
+                       const DenseMatrix &M,
                        double density,
-                       int idx,
-                       const std::string &tag)
+                       int idx)
 {
-    std::cout << tag
+    std::cout << " | n=" << n
               << " | density=" << density
               << " | mat#=" << idx << "\n"
               << "Adjacency matrix:\n";
             //   << M << "\n\n";
 
-    // 1) Greedy (vector<int>)
+    // // 1) Greedy (vector<int>)
     auto [greedSolVec, tG] = timeit([&]{ return GreedyColoring::color(M); });
     std::cout << "Жадный метод: \n";
     printColoring(greedSolVec);
@@ -42,7 +42,7 @@ static void runOnDense(const DenseMatrix &M,
     std::cout << (isProperColoring(M, greedSolVec, false) ? "✔ корректно\n\n"
                                                       : "✖ конфликт!\n\n");
 
-    // 2) DSATUR (vector<int>)
+    // // 2) DSATUR (vector<int>)
     auto [dsatSolVec, tD] = timeit([&]{ return DSaturColoring::color(M); });
     std::cout << "DSatur метод: \n";
     printColoring(dsatSolVec);
@@ -50,7 +50,7 @@ static void runOnDense(const DenseMatrix &M,
     std::cout << (isProperColoring(M, dsatSolVec, false) ? "✔ корректно\n\n"
                                                      : "✖ конфликт!\n\n");
 
-    // 3) Расширенная эвристика (greedy::Coloring)
+    // // 3) Расширенная эвристика (greedy::Coloring)
     auto [greedHObj, tGH] = timeit([&]{ return greedy::Coloring{M}; });
     std::cout << "Жадный метод с эвристиками: \n";
     printColoring(greedHObj);
@@ -58,7 +58,7 @@ static void runOnDense(const DenseMatrix &M,
     std::cout << (isProperColoring(M, greedHObj) ? "✔ корректно\n\n"
                                              : "✖ конфликт!\n\n");
 
-    // // 4) DSATUR-BnB — гарантировано минимальное χ
+    // 4) DSATUR-BnB — гарантировано минимальное χ
     // auto [bnbColorVec, tDBnB] = timeit([&]{ return DSaturBnB::color(M); });
     // std::cout << "DSATUR-BnB (точный):\n";
     // printColoring(bnbColorVec);
@@ -86,15 +86,15 @@ inline void runBenchmarks(int n,
                           const std::vector<double> &densities,
                           int perDensity)
 {
-    auto graphs = loadGraphs("graphs.txt");
-    for (size_t idx=0; idx<graphs.size(); ++idx)
-    {
-        const auto& G = graphs[idx];
-        writeMatrix("start_matrix_" + std::to_string(idx+1) + ".txt", G.A);
-        std::cout << "=== Graph #" << idx+1
-                  << "  (n="<<G.n<<", d≈"<<G.density<<") ===\n";
-        runOnDense(G.A, G.density, idx, "Dense");
-    }
+    // auto graphs = loadGraphs("graphs.txt");
+    // for (size_t idx=0; idx<graphs.size(); ++idx)
+    // {
+    //     const auto& G = graphs[idx];
+    //     writeMatrix("start_matrix_" + std::to_string(idx+1) + ".txt", G.A);
+    //     std::cout << "=== Graph #" << idx+1
+    //               << "  (n="<<G.n<<", d≈"<<G.density<<") ===\n";
+    //     runOnDense(G.A, G.density, idx, "Dense");
+    // }
     // DenseMatrix TEST_MATRIX {
     //     {0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
     //     {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
@@ -110,12 +110,12 @@ inline void runBenchmarks(int n,
     // runOnDense(TEST_MATRIX, 1, 1, "Dense");
 
 
-    // for (double d : densities)
-    // {
-    //     auto denseList = generateDenseMatrices(n, d, perDensity);
-    //     for (int i = 0; i < perDensity; ++i)
-    //     {
-    //         runOnDense(denseList[i], d, i, "Dense");
-    //     }
-    // }
+    for (double d : densities)
+    {
+        auto denseList = generateDenseMatrices(n, d, perDensity);
+        for (int i = 0; i < perDensity; ++i)
+        {
+            runOnDense(n, denseList[i], d, i);
+        }
+    }
 }
