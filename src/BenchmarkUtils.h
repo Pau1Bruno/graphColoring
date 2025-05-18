@@ -180,3 +180,25 @@ inline bool isProperColoring(const std::vector<std::vector<int>>& adj,
         for (int v : groups[c]) col[v] = static_cast<int>(c) + 1;
     return isProperColoring(adj, col, true);
 }
+
+/*---------------------------------------------------------------*
+ |  4. проверка (0/1-матрица  +  vector<vector<int>> groups)     |
+ *---------------------------------------------------------------*/
+template<class Matrix>
+bool isProperColoring(
+    const Matrix& M,
+    const std::vector<std::vector<int>>& groups,
+    bool oneBased = true)
+{
+    const int n = M.rows();
+    // раскладываем группы в вектор цветов
+    std::vector<int> col(n, oneBased ? 1 : 0);
+    for (size_t c = 0; c < groups.size(); ++c) {
+        for (int v : groups[c]) {
+            if (v < 0 || v >= n) return false;            // неверный индекс
+            col[v] = static_cast<int>(c) + (oneBased ? 1 : 0);
+        }
+    }
+    // вызываем уже существующую проверку для вектора цветов
+    return isProperColoring(M, col, oneBased);
+}

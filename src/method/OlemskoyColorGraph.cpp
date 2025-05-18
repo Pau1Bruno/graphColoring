@@ -1,4 +1,3 @@
-// OlemskoyColorGraph.cpp
 #include "OlemskoyColorGraph.h"
 #include "GPair.h"
 
@@ -7,31 +6,40 @@
 #include <fstream>
 #include <iostream>
 #include <numeric>
-#include <unordered_set>
 
-/*---------------------------------------------------------------
-   Единый поток-лог →  olemskoy_steps.txt
- ----------------------------------------------------------------*/
+/*---------------------------------------------------------------*
+ |  Единый поток-лог →  olemskoy_steps.txt                       |
+ *---------------------------------------------------------------*/
 static std::ofstream LOG("olemskoy_steps.txt");
+
+/* ---------- «пустые» статические контейнеры ---------- */
+static const std::vector<int>              kEmptyIntVec;
+static const std::vector<std::vector<int>> kEmptyInt2d;
+static const std::vector<GPair>            kEmptyGPairVec;
+
 
 /*================================================================*/
 /*                    OlemskoyColorGraph                          */
 /*================================================================*/
-OlemskoyColorGraph::OlemskoyColorGraph(const Graph &matrix) : g(matrix)
+OlemskoyColorGraph::OlemskoyColorGraph(const Graph& matrix) : g(matrix)
 {
     n                        = g.size();
-    bestColorCount           = n;   // стартовая оценка χ
-    bestColorBottomLineColor = -1;  // нижняя оценка пока не получена
+    bestColorCount           = n;       // стартовая оценка χ
+    bestColorBottomLineColor = -1;
     used.assign(n, false);
     LOG << "Graph n = " << n << '\n';
 }
 
+/*---------------------------------------------------------------*
+ |                    PUBLIC  API                                |
+ *---------------------------------------------------------------*/
 std::vector<std::vector<int>> OlemskoyColorGraph::resultColorNodes()
 {
     bestPartition.clear();
     currentPartition.clear();
     firstBlockSeen.clear();
-    lvl.clear();
+
+    omega_.clear(); Q_.clear(); F_.clear(); G_.clear();
 
     LOG << "--- Начало алгоритма --- \n";
     searchBlocks(0);
@@ -41,46 +49,127 @@ std::vector<std::vector<int>> OlemskoyColorGraph::resultColorNodes()
     return bestPartition;
 }
 
-/*================================================================*/
-/*                 ВСПОМОГАТЕЛЬНЫЕ ПРОЦЕДУРЫ                      */
-/*================================================================*/
-std::vector<int>
-OlemskoyColorGraph::computePsi(const std::vector<int>& omega,
-                               const std::vector<int>& currentBlock,
-                               int level)
+/*---------------------------------------------------------------*
+ |                ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ                        |
+ *---------------------------------------------------------------*/
+void OlemskoyColorGraph::setLevelData(int j, int s,
+                                      const std::vector<int>&   omega,
+                                      const std::vector<GPair>& G)
 {
-    std::unordered_set<int> skip(currentBlock.begin(),
-                                 currentBlock.begin() + 2 * level);
+    Key key{j,s};
+    omega_[key] = omega;
+    G_[key] = G;
 
-    std::vector<int> psi;
-    psi.reserve(omega.size());
-    for (int v : omega)
-        if (!skip.count(v)) psi.push_back(v);
-    return psi;
+    Q_[key].clear();
+    F_[key].clear();
 }
 
-std::vector<int>
-OlemskoyColorGraph::computeZ(const std::vector<GPair>& gPairs,
-                             const std::vector<int>&   psi)
+void OlemskoyColorGraph::setOmega(int j,int s, const std::vector<int>& omega) { 
+    omega_[{j,s}] = omega;
+ }
+
+void OlemskoyColorGraph::addQ(int j,int s,int q, int r) { 
+    Q_[{j,s}].push_back({q,r});
+ }
+ 
+void OlemskoyColorGraph::addF(int j,int s,int q, int r) { 
+    F_[{j,s}].push_back(q);
+    F_[{j,s}].push_back(r);
+ }
+
+ void OlemskoyColorGraph::addF(int j,int s,int v) { 
+    F_[{j,s}].push_back(v);
+ }
+
+void OlemskoyColorGraph::eraseLevel(int j,int s)
 {
+    Key k{j,s};
+    omega_.erase(k);
+    Q_.erase(k);
+    F_.erase(k);
+    G_.erase(k);
+}
+
+/* ---------- безопасные геттеры ---------- */
+const std::vector<int>&
+OlemskoyColorGraph::getOmega(int j,int s) const
+{
+    auto it = omega_.find({j,s});
+    return (it == omega_.end()) ? kEmptyIntVec : it->second;
+}
+
+const std::vector<std::vector<int>>&
+OlemskoyColorGraph::getQ(int j,int s) const
+{
+    auto it = Q_.find({j,s});
+    return (it == Q_.end()) ? kEmptyInt2d : it->second;
+}
+
+const std::vector<int>&
+OlemskoyColorGraph::getF(int j,int s) const
+{
+    auto it = F_.find({j,s});
+    return (it == F_.end()) ? kEmptyIntVec : it->second;
+}
+
+const std::vector<GPair>&
+OlemskoyColorGraph::getG(int j,int s) const
+{
+    auto it = G_.find({j,s});
+    return (it == G_.end()) ? kEmptyGPairVec : it->second;
+}
+
+const std::vector<GPair>&
+OlemskoyColorGraph::getZ(int j,int s) const
+{
+    auto it = Z_.find({j,s});
+    return (it == Z_.end()) ? kEmptyGPairVec : it->second;
+}
+
+/*---------------------------------------------------------------*
+ |  Ψ^{j,s} = J^{j} \ ⋃_{μ=1}^{s-1} Q^{j,μ}                      |
+ *---------------------------------------------------------------*/
+std::vector<int>
+OlemskoyColorGraph::computePsi(int j, int s,
+                               const std::vector<int>& J) const
+{
+    /* 1. skip = ⋃_{μ=1}^{s-1} Q^{j,μ} */
+    std::unordered_set<int> skip;
+
+    for (int mu = 1; mu < s; ++mu) {                 // μ = 1 … s-1
+        const auto& qLevel = getQ(j, mu);            // ← геттер, может быть пуст
+        for (const auto& qpair : qLevel)             // каждая пара <α1,α2>
+            for (int v : qpair) skip.insert(v);      // обе вершины → skip
+    }
+
+    /* 2. Ψ = J \ skip */
+    std::vector<int> psi;
+    psi.reserve(J.size());
+    for (int v : J)
+        if (!skip.count(v)) psi.push_back(v);
+
+    return psi;                                      // Ψ^{j,s}
+}
+
+/*---------------------------------------------------------------*
+ |  Ψ\Z-прореживание                                             |
+ *---------------------------------------------------------------*/
+std::vector<int>
+OlemskoyColorGraph::pruneOmega(int j, int s,
+                               const std::vector<int>& J) const
+{
+    auto psi = computePsi(j, s, J);          // Ψ^{j,s}
+
+    /* Z^{j,s} формируем из сохранённых G^{j,s} */
+    const auto& gPairs = getG(j, s);         // может быть пуст
     std::vector<int> Z;
     for (const auto& gp : gPairs)
-        if (gp.set == psi) {           // D_{α}^{j,s} == Ψ
+        if (gp.set == psi) {                 // D_{α}^{j,s} == Ψ ?
             Z.push_back(gp.i);
             Z.push_back(gp.j);
         }
-    return Z;
-}
 
-std::vector<int>
-OlemskoyColorGraph::pruneOmega(const std::vector<int>& omega,
-                               const std::vector<GPair>& gPairs,
-                               const std::vector<int>& currentBlock,
-                               int level)
-{
-    auto psi = computePsi(omega, currentBlock, level);
-    auto Z   = computeZ  (gPairs, psi);
-
+    /* Ψ \ Z */
     std::vector<int> pruned;
     for (int v : psi)
         if (std::find(Z.begin(), Z.end(), v) == Z.end())
@@ -92,9 +181,9 @@ OlemskoyColorGraph::pruneOmega(const std::vector<int>& omega,
     return pruned;
 }
 
-/*================================================================*/
-/*                          РЕКУРСИЯ                              */
-/*================================================================*/
+/*---------------------------------------------------------------*
+ |                 ОСНОВНАЯ РЕКУРСИЯ                             |
+ *---------------------------------------------------------------*/
 void OlemskoyColorGraph::searchBlocks(int currentBlockIndex)
 {
     bool allColored = true;
@@ -105,58 +194,54 @@ void OlemskoyColorGraph::searchBlocks(int currentBlockIndex)
         int blocksUsed = currentBlockIndex;
         LOG << "Все вершины покрашены в " << blocksUsed << " блоков/блока\n";
 
-        if (bestColorBottomLineColor == currentBlockIndex) {
-            LOG << "Раскраска найдена \n";
-            return;
-        }
-
         if (blocksUsed < bestColorCount) {
             bestColorCount = blocksUsed;
             bestPartition  = currentPartition;
             LOG << "Найдено меньшее хроматическое число! Оно равно "
                 << bestColorCount << " \n";
         }
+
         return;
     }
 
-    /* Ω */
+    /* Ω — множество ещё не закрашенных */
     std::vector<int> omega;
     for (int v = 0; v < n; ++v)
         if (!used[v]) omega.push_back(v);
 
-    /* запуск построения блока */
+    /* старт построения блока */
     std::vector<int> currentBlock;
-    buildBlock(currentBlockIndex, /*s=*/0, currentBlock, omega);
+    buildBlock(currentBlockIndex, 0, currentBlock, omega);
 }
 
 /*───────────────────────────────────────────────────────────────*/
 void OlemskoyColorGraph::buildBlock(int blockIndex, int level,
-                                    std::vector<int> &currentBlock,
-                                    const std::vector<int> &omega)
+                                    std::vector<int>&       currentBlock,
+                                    const std::vector<int>& omega)
 {
-    /*— блок закрыт —*/
+    setOmega(blockIndex, level, omega);
+    /*-------------------- БАЗА: ω пусто ------------------------*/
     if (omega.empty()) {
-        LOG << "Опорное множество пусто \n";
+        LOG << "Опорное множество(" << blockIndex << ", " << level
+        << "): " << omega << "пусто \n";
         LOG << "Блок(" << blockIndex << ", " << level << "): "
             << currentBlock << "\n";
 
-        /* Ψ\Z-прореживание ПЕРЕД переходом к следующему блоку */
-        if (!lvl.empty()) {
-            const auto& last = lvl.back();
-            std::vector<int> singles =
-                pruneOmega(last.omega, last.G, currentBlock, level);
-
-            /* добавляем все одиночки к F^{j,s} текущего уровня */
+        /* Ψ\Z-прореживание перед переходом к следующему блоку */
+        if (level > 0)
+        {
+            std::vector<int> singles = pruneOmega(blockIndex, level, currentBlock);
+            
             for (int v : singles) {
-                markAsTail(v);
+                addF(blockIndex, level, v);                  // F^{j,s-1} ← … ∪ {v}
                 LOG << "   F-tail added: " << v << '\n';
             }
-
-            /*— лог текущих Q,F —*/
-            LOG << "Q(level " << level << ") = " << last.Q << '\n';
-            LOG << "F(level " << level << ") = " << last.F << '\n';
+        
+            LOG << "Q(level " << level << ") = "
+                << getQ(blockIndex, level) << '\n';
+            LOG << "F(level " << level << ") = "
+                << getF(blockIndex, level) << '\n';
         }
-
         currentPartition.push_back(currentBlock);
         LOG << "Текущий набор блоков: " << currentPartition << "\n";
 
@@ -166,80 +251,68 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, int level,
         return;
     }
 
+    /*-------------------- ОБЫЧНЫЙ СЛУЧАЙ -----------------------*/
     LOG << "Опорное множество(" << blockIndex << ", " << level
         << "): " << omega << "\n";
 
     auto gPairs = buildGPairsHV(g, omega);
     LOG << "Возможные варианты продолжений " << gPairs << '\n';
 
-    LOG << "Номер текущего блока: " << blockIndex << ", уровень: "
-        << level << '\n';
+    LOG << "Номер текущего блока: " << blockIndex
+        << ", уровень: " << level << '\n';
 
-    /*-------------            проверки A/B/C               --------*/
+    /*-------- проверки A/B/C                            --------*/
     if (blockIndex != 0 && !gPairs.empty()) {                  // A
         int ro = std::max<int>(1, gPairs[0].set.size());
-        LOG << "Проверка A [" << blockIndex << "] " << blockIndex
-            << " + " << (int)omega.size() / ro << " < "
-            << bestColorCount << "\n";
+        LOG << "Проверка A [" << blockIndex << "] "
+            << blockIndex << " + " << (int)omega.size() / ro
+            << " < " << bestColorCount << "\n";
         if (blockIndex + (int)omega.size() / ro > bestColorCount) {
-            LOG << "проверка A провалена, возврат к построению "
-                   "предыдущего блока blockIndex:= blockIndex - 1 \n";
+            LOG << "проверка A провалена\n";
             return;
-        } else {
-            LOG << "проверка A пройдена \n";
         }
     }
 
     if (blockIndex == 0 && !gPairs.empty()) {                  // B
         int ro         = std::max<int>(1, gPairs[0].set.size());
-        int potential  = 2 * (level) + ro;
+        int potential  = 2 * level + ro;
         int flooredDiv = n / bestColorCount;
-        LOG << "Проверка В [" << blockIndex << "] " << 2 * (level)
-            << " + " << ro << " > " << flooredDiv << "\n";
+        LOG << "Проверка В [" << blockIndex << "] "
+            << 2 * level << " + " << ro << " > "
+            << flooredDiv << "\n";
         if (potential > flooredDiv) {
-            LOG << "проверка В успешна, продолжаем построение \n";
-            int theBest = (n + ro - 1) / ro;
-            bestColorBottomLineColor = theBest;
-            LOG << "Получена оценка снизу хроматического числа, "
-                   "оно равно: "
+            LOG << "проверка В успешна\n";
+            bestColorBottomLineColor = (n + ro - 1) / ro;
+            LOG << "Получена нижняя оценка χ: "
                 << bestColorBottomLineColor << "\n";
         } else {
-            LOG << "проверка В провалена, возврат к предыдущему "
-                   "уровню level:= level - 1 \n";
+            LOG << "проверка В провалена\n";
             return;
         }
     }
 
     if (blockIndex + 2 == bestColorCount && !gPairs.empty()) { // C
         int ro = std::max<int>(1, gPairs[0].set.size());
-        LOG << "Проверка С [" << blockIndex << "] " << blockIndex + 2
-            << " ?= " << bestColorCount << "\n";
-        LOG << "Проверка С [" << blockIndex << "] "
-            << 2 * (level) + ro << " ?= " << omega.size() << "\n";
-        if (blockIndex + 2 == bestColorCount &&
-            2 * (level) + ro == (int)omega.size()) {
-            LOG << "проверка C провалена, возврат к построению "
-                   "предыдущего блока blockIndex:= blockIndex - 1 \n";
+        if (2 * level + ro == (int)omega.size()) {
+            LOG << "проверка C провалена\n";
             return;
-        } else {
-            LOG << "проверка C провалена \n";
         }
     }
 
-    /*================ pushLevel — ω/G =========================*/
-    pushLevel(omega, gPairs);
+    /*---------------- сохраняем данные уровня ------------------*/
+    setLevelData(blockIndex, level, omega, gPairs);
 
-    /*================ 1. перебираем пары (α) ==================*/
-    for (const auto &pr : gPairs) {
-        markAsNode(pr.i);
-        markAsNode(pr.j);
+    /*---------------- перебираем пары (α) ----------------------*/
+    for (const auto& pr : gPairs) {
+        addQ(blockIndex, level, pr.i, pr.j);
 
         used[pr.i] = used[pr.j] = true;
         currentBlock.push_back(pr.i);
         currentBlock.push_back(pr.j);
         std::sort(currentBlock.begin(), currentBlock.end());
 
-       std::vector<int> updatedOmega;
+        /* ω  ←  ω  \ { i,j }  \ N(i)  \ N(j) */
+        std::vector<int> updatedOmega;
         for (int node : omega)
             if (node != pr.i && node != pr.j &&
                 !g.areAdjacent(pr.i,node) && !g.areAdjacent(pr.j,node))
@@ -256,20 +329,6 @@ void OlemskoyColorGraph::buildBlock(int blockIndex, int level,
         used[pr.i] = used[pr.j] = false;
     }
 
-    /* откат уровня */
-    popLevel();
+    /*--- очистка данных уровня (как popLevel) ---*/
+    eraseLevel(blockIndex, level);
 }
-
-/*------------ работа с «стеком уровней» ----------------*/
-void OlemskoyColorGraph::pushLevel(const std::vector<int>& omega,
-                                   const std::vector<GPair>& G)
-{
-    lvl.push_back(LevelState{});
-    lvl.back().omega = omega;
-    lvl.back().G     = G;
-}
-
-void OlemskoyColorGraph::popLevel() { lvl.pop_back(); }
-
-void OlemskoyColorGraph::markAsNode(int v) { if(!lvl.empty()) lvl.back().Q.push_back(v); }
-void OlemskoyColorGraph::markAsTail(int v) { if(!lvl.empty()) lvl.back().F.push_back(v); }
