@@ -64,7 +64,7 @@ inline void printColoring(const std::vector<std::vector<int>>& groups)
     //     std::cout << "Цвет " << (c + 1) << ": ";
     //     const auto& verts = groups[c];
     //     for (size_t i = 0; i < verts.size(); ++i)
-    //         std::cout << verts[i] << (i + 1 == verts.size() ? "" : ", ");
+    //         std::cout << verts[i] + 1 << (i + 1 == verts.size() ? "" : ", ");
     //     std::cout << '\n';
     // }
 }

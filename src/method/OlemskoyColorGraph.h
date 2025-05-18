@@ -71,7 +71,9 @@ private:
     void searchBlocks(int currentBlockIndex);
     void buildBlock  (int blockIndex, int level,
                       std::vector<int>&       currentBlock,
-                      const std::vector<int>& omega);
+                      const std::vector<int>& omega,
+                    std::vector<int>& r_j
+                    );
 
     /*------------- Ψ/Z-прореживание ------------*/
     std::vector<int> computePsi(int j,

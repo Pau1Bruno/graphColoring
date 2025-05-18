@@ -1,107 +1,152 @@
-#pragma once
+#ifndef DSATUR_BNB_H
+#define DSATUR_BNB_H
+
 #include <Eigen/Dense>
 #include <vector>
 #include <algorithm>
 #include <numeric>
-#include <unordered_set>
+#include <cstdint>
+#include <functional>
 
-namespace DSaturBnB 
+namespace DSaturBnB
 {
-    using DenseMatrix =
-        Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+/*--------------------------------------------------------------*/
+/*  Тип матрицы (0/1, RowMajor удобно для A(i,j)-доступа)       */
+/*--------------------------------------------------------------*/
+using DenseMatrix =
+    Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
-    // === Вспомогательная «быстрая» жадная раскраска (Upper Bound) ============
-    static int greedyUB(const DenseMatrix& A, std::vector<int>& col) {
-        const int n = A.rows();
-        col.assign(n, -1);
-        std::vector<int> deg(n);
-        std::iota(deg.begin(), deg.end(), 0);
-        std::sort(deg.begin(), deg.end(), [&](int a, int b) {
-            int da = A.row(a).sum();
-            int db = A.row(b).sum();
-            return da > db;
-        });
-        int used = 0;
-        for (int v : deg) {
-            std::vector<bool> forbid(n, false);
-            for (int u = 0; u < n; ++u)
-                if (A(v, u) && col[u] != -1) forbid[col[u]] = true;
-            int c = 0;
-            while (forbid[c]) ++c;
-            col[v] = c;
-            used = std::max(used, c + 1);
-        }
-        return used;
-    }
+/*--------------------------------------------------------------*/
+/*  Быстрый жадный Welsh–Powell  ⇒  начальная верхняя граница   */
+/*--------------------------------------------------------------*/
+inline int greedyUB(const DenseMatrix& A, std::vector<int>& col)
+{
+    const int n = A.rows();
+    col.assign(n, -1);
 
-    // === Основная функция: точная DSATUR + Branch&Bound =======================
-    static std::vector<int> color(const DenseMatrix& A)
+    /* — упорядочиваем вершины по убыванию степеней — */
+    std::vector<int> order(n);
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(), [&](int a, int b)
+              { return A.row(a).sum() > A.row(b).sum(); });
+
+    int used = 0;
+    std::vector<int> forbid(n, 0), stamp(n, 0);
+    int curStamp = 1;
+
+    for (int v : order)
     {
-        const int n = A.rows();
-        std::vector<int> best(n, -1);       // окончательное решение
-        std::vector<int> cur (n, -1);       // текущая частичная раскраска
-        int UB = n;                         // верхняя граница χ
+        /* отмечаем занятые цвета */
+        for (int u = 0; u < n; ++u)
+            if (A(v, u) && col[u] != -1)
+                stamp[col[u]] = curStamp;
 
-        // получаем приличную начальную UB за O(n²)
-        std::vector<int> tmp;
-        UB = greedyUB(A, tmp);
-        best = tmp;
-
-        // пред-вычислим степенной массив (нужно только один раз)
-        std::vector<int> degree(n);
-        for (int v = 0; v < n; ++v)
-            degree[v] = static_cast<int>(A.row(v).sum());
-
-        // Рекурсивное B&B c DSATUR-выбором вершины
-        std::function<void(int)> dfs = [&](int colored) {
-            if (colored == n) {                    // все вершины раскрашены
-                int used = 0;
-                for (int c : cur) used = std::max(used, c + 1);
-                if (used < UB) {
-                    UB   = used;
-                    best = cur;
-                }
-                return;
-            }
-            // --- выбираем вершину по DSATUR ---
-            int sel = -1, maxSat = -1, maxDeg = -1;
-            for (int v = 0; v < n; ++v) if (cur[v] == -1) {
-                std::unordered_set<int> neighColors;
-                for (int u = 0; u < n; ++u)
-                    if (A(v,u) && cur[u] != -1) neighColors.insert(cur[u]);
-                int sat = static_cast<int>(neighColors.size());
-                if (sat > maxSat || (sat == maxSat && degree[v] > maxDeg)) {
-                    sel    = v;
-                    maxSat = sat;
-                    maxDeg = degree[v];
-                }
-            }
-
-            // --- запрещённые цвета для sel ---
-            std::vector<bool> forbid(UB, false);
-            for (int u = 0; u < n; ++u)
-                if (A(sel,u) && cur[u] != -1) forbid[cur[u]] = true;
-
-            // --- пробуем существующие цвета (0..UB-1) ---
-            for (int c = 0; c < UB; ++c) {
-                if (forbid[c]) continue;
-                cur[sel] = c;
-                dfs(colored + 1);
-                cur[sel] = -1;
-            }
-
-            // --- новая ветка: создаём новый цвет (если не превысим UB-1) ---
-            int newColor = 0;
-            while (newColor < UB && forbid[newColor]) ++newColor;
-            if (newColor == UB - 1) {              // можем добавить ровно UB-1?
-                cur[sel] = newColor;
-                dfs(colored + 1);
-                cur[sel] = -1;
-            }
-        };
-
-        dfs(0);
-
-        return best;
+        int c = 0;
+        while (stamp[c] == curStamp) ++c;
+        col[v] = c;
+        used   = std::max(used, c + 1);
+        ++curStamp;
     }
+    return used;                       /* χᴳ */
 }
+
+/*--------------------------------------------------------------*/
+/*  Основная функция: точная DSATUR + B&B                       */
+/*--------------------------------------------------------------*/
+inline std::vector<int> color(const DenseMatrix& A)
+{
+    const int n = A.rows();
+
+    /* ---------- списки смежности + степени ---------- */
+    std::vector<std::vector<int>> adj(n);
+    std::vector<int> degree(n, 0);
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j)
+            if (A(i, j))
+            {
+                adj[i].push_back(j);
+                ++degree[i];
+            }
+
+    /* ---------- начальная greedy-граница χᴳ ---------- */
+    std::vector<int> best;                 // сюда greedyUB запишет раскраску
+    int UB = greedyUB(A, best);            // UB = χᴳ
+
+    /* ---------- рабочие структуры DFS  --------------- */
+    std::vector<int> colour(n, -1);        // текущая раскраска
+    std::vector<int> sat   (n,  0);        // насыщенность (|разн. цветов|)
+    std::vector<std::vector<uint8_t>>      // forbidCnt[v][c] : счётчик
+        forbidCnt(n, std::vector<uint8_t>(UB, 0));
+
+    int maxUsed = 0;                       // max(colour)+1 в текущем пути
+
+    /* ---------- рекурсивный поиск  ------------------- */
+    std::function<void(int)> dfs = [&](int colored)
+    {
+        /* нижняя граница χ  (Brooks-like) */
+        int low = maxUsed;
+        for (int v = 0; v < n; ++v)
+            if (colour[v] == -1)
+                low = std::max(low, sat[v] + 1);
+        if (low >= UB) return;             // отсечение
+
+        if (colored == n)                  // нашли полную раскраску
+        {
+            UB   = maxUsed;
+            best = colour;
+            return;
+        }
+
+        /* ---- выбираем вершину по DSATUR ---- */
+        int v = -1, bestSat = -1, bestDeg = -1;
+        for (int i = 0; i < n; ++i)
+            if (colour[i] == -1 &&
+               (sat[i] > bestSat || (sat[i] == bestSat && degree[i] > bestDeg)))
+            {
+                v       = i;
+                bestSat = sat[i];
+                bestDeg = degree[i];
+            }
+
+        /* ---- перебираем уже используемые цвета ---- */
+        for (int c = 0; c < maxUsed; ++c)
+        {
+            if (forbidCnt[v][c]) continue;         // цвет запрещён
+
+            /* assign colour c */
+            colour[v] = c;
+            for (int u : adj[v])
+                if (colour[u] == -1 && forbidCnt[u][c]++ == 0) ++sat[u];
+
+            dfs(colored + 1);
+
+            /* undo */
+            for (int u : adj[v])
+                if (colour[u] == -1 && --forbidCnt[u][c] == 0) --sat[u];
+            colour[v] = -1;
+        }
+
+        /* ---- пытаемся завести НОВЫЙ цвет ---- */
+        if (maxUsed + 1 < UB)
+        {
+            int c = maxUsed;
+            colour[v] = c;
+            for (int u : adj[v])
+                if (colour[u] == -1 && forbidCnt[u][c]++ == 0) ++sat[u];
+
+            ++maxUsed;
+            dfs(colored + 1);
+            --maxUsed;
+
+            for (int u : adj[v])
+                if (colour[u] == -1 && --forbidCnt[u][c] == 0) --sat[u];
+            colour[v] = -1;
+        }
+    };
+
+    dfs(/*colored=*/0);
+    return best;                           // 0-based цвета
+}
+
+} // namespace DSaturBnB
+#endif /* DSATUR_BNB_H */

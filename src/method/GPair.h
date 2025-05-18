@@ -25,7 +25,7 @@ inline bool contains(const std::vector<int>& vec, int x)
     возвращает отсортированный vector<GPair>
 ------------------------------------------------------------------------ */
 inline std::vector<GPair>
-buildGPairsHV(const Graph& g, const std::vector<int>& omega)
+buildGPairsHV(const Graph& g, const std::vector<int>& omega, const std::vector<std::vector<int>>& Q)
 {
     const auto& adj = g.adjacency();
     const int n = static_cast<int>(adj.size());
@@ -53,7 +53,8 @@ buildGPairsHV(const Graph& g, const std::vector<int>& omega)
                 if (contains(d_rq, el)) Dij.push_back(el);
 
             if (!contains(Dij, i) || !contains(Dij, j)) continue;
-
+            
+            if (std::find(Q.begin(), Q.end(), std::vector<int> {i,j}) != Q.end()) continue;
             out.push_back({i, j, std::move(Dij)});
         }
     }

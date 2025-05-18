@@ -4,6 +4,7 @@
 #include "algorithms/DSaturColoring.h"
 #include "algorithms/GreedyHeuristicsColoring.h"
 #include "algorithms/DSaturBnB.h"
+#include "algorithms/MISBacktracking.h"
 
 #include "method/Graph.h"
 #include "method/OlemskoyColorGraph.h"
@@ -33,7 +34,7 @@ static void runOnDense(int n,
               << "Adjacency matrix:\n";
             //   << M << "\n\n";
 
-    // // 1) Greedy (vector<int>)
+    // 1) Greedy (vector<int>)
     // auto [greedSolVec, tG] = timeit([&]{ return GreedyColoring::color(M); });
     // std::cout << "Жадный метод: \n";
     // printColoring(greedSolVec);
@@ -49,7 +50,7 @@ static void runOnDense(int n,
     // std::cout << (isProperColoring(M, dsatSolVec, false) ? "✔ корректно\n\n"
     //                                                  : "✖ конфликт!\n\n");
 
-    // // 3) Расширенная эвристика (greedy::Coloring)
+    // 3) Расширенная эвристика (greedy::Coloring)
     // auto [greedHObj, tGH] = timeit([&]{ return greedy::Coloring{M}; });
     // std::cout << "Жадный метод с эвристиками: \n";
     // printColoring(greedHObj);
@@ -64,16 +65,24 @@ static void runOnDense(int n,
     std::cout << "Время: " << tDBnB << " c\n\n";
     std::cout << (isProperColoring(M, bnbColorVec, false) ? "✔ корректно\n\n"
                                                      : "✖ конфликт!\n\n");
-    // 5) Метод Олемского
-    auto [olemSol, tO] = timeit([&]{ 
-        Graph G(M);
-        OlemskoyColorGraph ocg(G);
-        return ocg.resultColorNodes();
-    });
-    printColoring(olemSol);
-    std::cout << "Время: " << tO << " c\n\n";
-    std::cout << (isProperColoring(M, olemSol, false) ? "✔ корректно\n\n"
+
+    // 5) MISBacktracking — гарантировано минимальное χ
+    auto [backtrackingVec, tBactracking] = timeit([&]{ return BacktrackingColoring::color(M); });
+    std::cout << "MISBacktracking (точный):\n";
+    printColoring(backtrackingVec);
+    std::cout << "Время: " << tBactracking << " c\n\n";
+    std::cout << (isProperColoring(M, backtrackingVec, false) ? "✔ корректно\n\n"
                                                      : "✖ конфликт!\n\n");
+    // 6) Метод Олемского
+    // auto [olemSol, tO] = timeit([&]{ 
+    //     Graph G(M);
+    //     OlemskoyColorGraph ocg(G);
+    //     return ocg.resultColorNodes();
+    // });
+    // printColoring(olemSol);
+    // std::cout << "Время: " << tO << " c\n\n";
+    // std::cout << (isProperColoring(M, olemSol, false) ? "✔ корректно\n\n"
+    //                                                  : "✖ конфликт!\n\n");
 }
 
 
@@ -94,27 +103,27 @@ inline void runBenchmarks(int n,
     //               << "  (n="<<G.n<<", d≈"<<G.density<<") ===\n";
     //     runOnDense(G.A, G.density, idx, "Dense");
     // }
-    DenseMatrix TEST_MATRIX {
-        {0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
-        {0, 1, 0, 1, 1, 1, 0, 0, 0, 0},
-        {1, 0, 1, 0, 0, 0, 1, 1, 0, 0},
-        {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
-        {1, 0, 1, 0, 0, 0, 0, 1, 1, 0},
-        {0, 1, 0, 0, 1, 1, 0, 0, 0, 1},
-        {0, 0, 0, 1, 0, 1, 0, 0, 0, 0},
-        {0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
-    };
-    runOnDense(10, TEST_MATRIX, 1, 1);
+    // DenseMatrix TEST_MATRIX {
+    //     {0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+    //     {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+    //     {0, 1, 0, 1, 1, 1, 0, 0, 0, 0},
+    //     {1, 0, 1, 0, 0, 0, 1, 1, 0, 0},
+    //     {0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+    //     {1, 0, 1, 0, 0, 0, 0, 1, 1, 0},
+    //     {0, 1, 0, 0, 1, 1, 0, 0, 0, 1},
+    //     {0, 0, 0, 1, 0, 1, 0, 0, 0, 0},
+    //     {0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+    //     {0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+    // };
+    // runOnDense(10, TEST_MATRIX, 1, 1);
 
 
-    // for (double d : densities)
-    // {
-    //     auto denseList = generateDenseMatrices(n, d, perDensity);
-    //     for (int i = 0; i < perDensity; ++i)
-    //     {
-    //         runOnDense(n, denseList[i], d, i);
-    //     }
-    // }
+    for (double d : densities)
+    {
+        auto denseList = generateDenseMatrices(n, d, perDensity);
+        for (int i = 0; i < perDensity; ++i)
+        {
+            runOnDense(n, denseList[i], d, i);
+        }
+    }
 }
